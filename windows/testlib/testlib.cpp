@@ -15,4 +15,8 @@ double Testlib::multiply(double a, double b) noexcept {
   return a * b;
 }
 
+double Testlib::openNewWindow() noexcept { 
+  return -1 * 123456789; // not implemented yet
+ }
+
 } // namespace winrt::testlib

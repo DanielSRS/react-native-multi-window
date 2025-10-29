@@ -18,6 +18,7 @@ namespace testlibCodegen {
 struct TestlibSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
   static constexpr auto methods = std::tuple{
       SyncMethod<double(double, double) noexcept>{0, L"multiply"},
+      SyncMethod<double() noexcept>{1, L"openNewWindow"},
   };
 
   template <class TModule>
@@ -29,6 +30,11 @@ struct TestlibSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
           "multiply",
           "    REACT_SYNC_METHOD(multiply) double multiply(double a, double b) noexcept { /* implementation */ }\n"
           "    REACT_SYNC_METHOD(multiply) static double multiply(double a, double b) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          1,
+          "openNewWindow",
+          "    REACT_SYNC_METHOD(openNewWindow) double openNewWindow() noexcept { /* implementation */ }\n"
+          "    REACT_SYNC_METHOD(openNewWindow) static double openNewWindow() noexcept { /* implementation */ }\n");
   }
 };
 

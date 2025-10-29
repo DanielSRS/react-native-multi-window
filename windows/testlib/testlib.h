@@ -26,6 +26,9 @@ struct Testlib
   REACT_SYNC_METHOD(multiply)
   double multiply(double a, double b) noexcept;
 
+  REACT_SYNC_METHOD(openNewWindow)
+  double openNewWindow() noexcept;
+
 private:
   React::ReactContext m_context;
 };

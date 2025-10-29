@@ -1,12 +1,20 @@
-import { Text, View, StyleSheet } from 'react-native';
-import { multiply } from '../../src/index';
+import { Text, View, StyleSheet, Button } from 'react-native';
+import { multiply, openNewWindow } from '../../src/index';
 
 const result = multiply(3, 7);
 
 export default function App() {
   return (
     <View style={styles.container}>
-      <Text>Result: {result}</Text>
+      <Text>Resultt: {result}</Text>
+      <Button
+        onPress={() => {
+          const responseCode = openNewWindow();
+          console.log('Response code from openNewWindow:', responseCode);
+        }}
+        title="Open New Window"
+        color={'#841584'}
+      />
     </View>
   );
 }
