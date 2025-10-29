@@ -27,11 +27,21 @@ struct ReactWindowState
   winrt::Microsoft::UI::Windowing::AppWindow Window{nullptr};
   winrt::Microsoft::ReactNative::CompositionHwndHost CompositionHost{nullptr};
   winrt::Microsoft::ReactNative::IReactViewHost ViewHost{nullptr};
+  winrt::event_token WindowChangedToken{};
+  winrt::event_token WindowDestroyingToken{};
 };
 
 inline std::vector<ReactWindowState> &ReactWindowStates() noexcept {
   static std::vector<ReactWindowState> states;
   return states;
+}
+
+inline ReactWindowState *FindWindowState(winrt::Microsoft::UI::WindowId const &windowId) noexcept {
+  auto &states = ReactWindowStates();
+  auto it = std::find_if(states.begin(), states.end(), [&windowId](ReactWindowState const &candidate) {
+    return candidate.Window && candidate.Window.Id() == windowId;
+  });
+  return it == states.end() ? nullptr : &(*it);
 }
 
 inline const wchar_t *ErrorMessageFor(int errorCode) noexcept {
@@ -49,11 +59,46 @@ inline const wchar_t *ErrorMessageFor(int errorCode) noexcept {
   }
 }
 
+inline void UpdateCompositionHostSize(ReactWindowState &state) noexcept {
+  if (!state.Window || !state.CompositionHost) {
+    return;
+  }
+
+  state.CompositionHost.TranslateMessage(WM_WINDOWPOSCHANGED, 0, 0);
+}
+
 inline void PruneWindowState(winrt::Microsoft::UI::Windowing::AppWindow const &window) noexcept {
   auto &states = ReactWindowStates();
   states.erase(
-      std::remove_if(states.begin(), states.end(), [windowId = window.Id()](ReactWindowState const &state) {
-        return state.Window && state.Window.Id() == windowId;
+      std::remove_if(states.begin(), states.end(), [windowId = window.Id()](ReactWindowState &state) {
+        if (!(state.Window && state.Window.Id() == windowId)) {
+          return false;
+        }
+
+        if (state.WindowChangedToken.value != 0) {
+          state.Window.Changed(state.WindowChangedToken);
+        }
+        if (state.WindowDestroyingToken.value != 0) {
+          state.Window.Destroying(state.WindowDestroyingToken);
+        }
+
+        if (state.ViewHost) {
+          try {
+            auto unloadAction = state.ViewHost.UnloadViewInstance();
+            if (unloadAction) {
+              unloadAction.Completed([](auto &&, auto &&) {});
+            }
+          } catch (...) {
+          }
+        }
+
+        state.Window = nullptr;
+        state.CompositionHost = nullptr;
+        state.ViewHost = nullptr;
+        state.WindowChangedToken = {};
+        state.WindowDestroyingToken = {};
+
+        return true;
       }),
       states.end());
 }
@@ -85,7 +130,21 @@ inline double OpenReactWindow(winrt::Microsoft::ReactNative::ReactContext const 
   ReactViewOptions viewOptions;
   viewOptions.ComponentName(L"TestlibExample");
 
-  auto viewHost = ReactCoreInjection::MakeViewHost(reactHost, viewOptions);
+  auto instanceSettings = reactHost.InstanceSettings();
+  auto properties = instanceSettings.Properties();
+
+  auto previousWindowId = ReactCoreInjection::GetTopLevelWindowId(properties);
+  ReactCoreInjection::SetTopLevelWindowId(properties, reinterpret_cast<uint64_t>(hwnd));
+
+  winrt::Microsoft::ReactNative::IReactViewHost viewHost{nullptr};
+  try {
+    viewHost = ReactCoreInjection::MakeViewHost(reactHost, viewOptions);
+  } catch (...) {
+    viewHost = nullptr;
+  }
+
+  ReactCoreInjection::SetTopLevelWindowId(properties, previousWindowId);
+
   if (viewHost == nullptr) {
     appWindow.Destroy();
     return static_cast<double>(kErrorCreateViewHost);
@@ -96,16 +155,31 @@ inline double OpenReactWindow(winrt::Microsoft::ReactNative::ReactContext const 
   compositionHost.Initialize(reinterpret_cast<uint64_t>(hwnd));
 
   auto &states = ReactWindowStates();
-  states.emplace_back(ReactWindowState{appWindow, compositionHost, viewHost});
+  states.emplace_back();
+  auto &storedState = states.back();
+  storedState.Window = appWindow;
+  storedState.CompositionHost = compositionHost;
+  storedState.ViewHost = viewHost;
 
-  appWindow.Title(L"New Window from RN");
+  storedState.WindowChangedToken = appWindow.Changed([](
+                                             winrt::Microsoft::UI::Windowing::AppWindow const &sender,
+                                             winrt::Microsoft::UI::Windowing::AppWindowChangedEventArgs const &args) {
+    if (args.DidSizeChange() || args.DidPresenterChange()) {
+      if (auto statePtr = FindWindowState(sender.Id())) {
+        UpdateCompositionHostSize(*statePtr);
+      }
+    }
+  });
 
-  appWindow.Destroying([](winrt::Microsoft::UI::Windowing::AppWindow const &sender,
-                          winrt::Windows::Foundation::IInspectable const &) {
+  storedState.WindowDestroyingToken = appWindow.Destroying([](
+      winrt::Microsoft::UI::Windowing::AppWindow const &sender, winrt::Windows::Foundation::IInspectable const &) {
     PruneWindowState(sender);
   });
 
+  appWindow.Title(L"New Window from RN");
   appWindow.Show();
+
+  UpdateCompositionHostSize(storedState);
 
   return static_cast<double>(windowId.Value);
 }
