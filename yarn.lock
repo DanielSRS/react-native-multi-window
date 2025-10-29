@@ -39,7 +39,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/core@npm:^7.11.6, @babel/core@npm:^7.12.3, @babel/core@npm:^7.23.9, @babel/core@npm:^7.25.2":
+"@babel/core@npm:^7.0.0, @babel/core@npm:^7.11.6, @babel/core@npm:^7.12.3, @babel/core@npm:^7.23.9, @babel/core@npm:^7.25.2":
   version: 7.28.5
   resolution: "@babel/core@npm:7.28.5"
   dependencies:
@@ -1349,7 +1349,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/preset-env@npm:^7.25.2, @babel/preset-env@npm:^7.25.3":
+"@babel/preset-env@npm:^7.0.0, @babel/preset-env@npm:^7.25.2, @babel/preset-env@npm:^7.25.3":
   version: 7.28.5
   resolution: "@babel/preset-env@npm:7.28.5"
   dependencies:
@@ -1458,7 +1458,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/preset-typescript@npm:^7.24.7":
+"@babel/preset-typescript@npm:^7.0.0, @babel/preset-typescript@npm:^7.24.7":
   version: 7.28.5
   resolution: "@babel/preset-typescript@npm:7.28.5"
   dependencies:
@@ -3683,6 +3683,23 @@ __metadata:
   peerDependencies:
     release-it: ^18.0.0 || ^19.0.0
   checksum: 9b8a90b3ceaee172cdfb0de248af62182d78966fe43b7d965566513423b5e96e1f1a95849e3a5b2cfc6d06d19ffc64b580aabdfbbbe50e8e491593cd03033016
+  languageName: node
+  linkType: hard
+
+"@rnx-kit/jest-preset@npm:^0.1.17":
+  version: 0.1.18
+  resolution: "@rnx-kit/jest-preset@npm:0.1.18"
+  dependencies:
+    "@babel/core": ^7.0.0
+    "@babel/preset-env": ^7.0.0
+    "@babel/preset-typescript": ^7.0.0
+    find-up: ^5.0.0
+  peerDependencies:
+    react-native: ^0.0.0-0 || >=0.63
+  peerDependenciesMeta:
+    react-native:
+      optional: true
+  checksum: 975d51b90e707539c6924fbf4f24af573622789cc3dc73e32379bf3681d2866dd657455a0ca45419a50ab7a069049aae7b1eac631efab1508e27984c590f9592
   languageName: node
   linkType: hard
 
@@ -11020,7 +11037,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-windows@npm:^0.79.0":
+"react-native-windows@npm:0.79.5, react-native-windows@npm:^0.79.0":
   version: 0.79.5
   resolution: "react-native-windows@npm:0.79.5"
   dependencies:
@@ -12329,11 +12346,13 @@ __metadata:
     "@react-native/babel-preset": 0.79.0
     "@react-native/metro-config": 0.79.0
     "@react-native/typescript-config": 0.79.0
+    "@rnx-kit/jest-preset": ^0.1.17
     "@types/react": ^19.0.0
     react: 19.0.0
     react-native: 0.79.0
     react-native-builder-bob: ^0.40.13
     react-native-monorepo-config: ^0.1.9
+    react-native-windows: 0.79.5
   languageName: unknown
   linkType: soft
 

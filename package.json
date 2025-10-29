@@ -29,7 +29,8 @@
     "!**/__tests__",
     "!**/__fixtures__",
     "!**/__mocks__",
-    "!**/.*"
+    "!**/.*",
+    "windows"
   ],
   "scripts": {
     "example": "yarn workspace testlib-example",
@@ -156,11 +157,23 @@
     "jsSrcsDir": "src",
     "android": {
       "javaPackageName": "com.testlib"
+    },
+    "windows": {
+      "namespace": "testlibCodegen",
+      "outputDirectory": "windows/testlib/codegen",
+      "separateDataTypes": true
     }
   },
   "create-react-native-library": {
     "type": "turbo-module",
     "languages": "kotlin-objc",
     "version": "0.54.8"
+  },
+  "react-native-windows": {
+    "init-windows": {
+      "name": "testlib",
+      "namespace": "testlib",
+      "template": "cpp-lib"
+    }
   }
 }
