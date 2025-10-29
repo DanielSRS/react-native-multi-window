@@ -1,7 +1,6 @@
 #include "pch.h"
 #include <winrt/Microsoft.UI.Windowing.h>
-#include <future>
-#include <chrono>
+#include <utility>
 
 #include "testlib.h"
 
@@ -18,32 +17,32 @@ double Testlib::multiply(double a, double b) noexcept {
   return a * b;
 }
 
-double _openNewWindow() noexcept { 
-  auto appWindow =
-            winrt::Microsoft::UI::Windowing::AppWindow::Create();
-  if (appWindow)
-  {
-      appWindow.Title(L"New Window form RN");
-      appWindow.Show();
-      return 999;
+double _openNewWindow() noexcept {
+  auto appWindow = winrt::Microsoft::UI::Windowing::AppWindow::Create();
+  if (appWindow) {
+    appWindow.Title(L"New Window from RN");
+    appWindow.Show();
+    return 999;
   }
-  return -1 * 111; // failed to create window
- }
+  return -111; // failed to create window
+}
 
- double Testlib::openNewWindow() noexcept { 
-  std::promise<double> creationPromise;
-  auto creationFuture = creationPromise.get_future();
+void Testlib::openNewWindow(::React::ReactPromise<double> &&promise) noexcept {
+  auto dispatcher = m_context.UIDispatcher();
 
-  m_context.UIDispatcher().Post([&]() {
-    double result = _openNewWindow();
-    creationPromise.set_value(result);
-  });
-
-  auto status = creationFuture.wait_for(std::chrono::seconds(5));
-  if (status == std::future_status::timeout) {
-    return -1 * 222; // timeout
+  if (dispatcher && dispatcher.HasThreadAccess()) {
+    promise.Resolve(_openNewWindow());
+    return;
   }
-  return creationFuture.get();
- }
+
+  if (dispatcher) {
+    dispatcher.Post([promise = std::move(promise)]() mutable {
+      promise.Resolve(_openNewWindow());
+    });
+    return;
+  }
+
+  promise.Reject(L"no_dispatcher. UIDispatcher is not available.");
+}
 
 } // namespace winrt::testlib

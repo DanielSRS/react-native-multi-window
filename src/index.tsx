@@ -4,6 +4,6 @@ export function multiply(a: number, b: number): number {
   return Testlib.multiply(a, b);
 }
 
-export function openNewWindow(): number {
+export function openNewWindow(): Promise<number> {
   return Testlib.openNewWindow();
 }
