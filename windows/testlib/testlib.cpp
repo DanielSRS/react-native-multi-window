@@ -9,6 +9,7 @@
 #include <winrt/Windows.Foundation.h>
 
 #include "testlib.h"
+#include "MicaWindow.h"
 
 namespace winrt::testlib
 {
@@ -229,16 +230,26 @@ void Testlib::openNewWindow(::React::ReactPromise<double> &&promise) noexcept {
   promise.Reject(L"no_dispatcher. UIDispatcher is not available.");
 }
 
-double _openMicaWindow() noexcept {
+double _openMicaWindow(winrt::Microsoft::ReactNative::ReactContext const &context) noexcept {
+  auto reactHost = winrt::Microsoft::ReactNative::ReactNativeHost::FromContext(context.Handle());
+  if (reactHost == nullptr) {
+    return -2.0; // no ReactNativeHost available
+  }
+  auto compositor = winrt::Microsoft::ReactNative::Composition::CompositionUIService::GetCompositor(reactHost.InstanceSettings().Properties());
+  if (compositor == nullptr) {
+    return -3.0; // no Compositor available
+  }
+  MicaWindow::RegisterWindowClass();
+  auto window = MicaWindow(compositor, L"Hello, Mica!");
   // Mica window creation not implemented yet
-  return -1.0;
+  return 1.0;
 }
 
 void Testlib::openMicaWindow(::React::ReactPromise<double> &&promise) noexcept {
   auto dispatcher = m_context.UIDispatcher();
 
   auto fulfill = [context = m_context](::React::ReactPromise<double> &&innerPromise) mutable {
-    auto result = _openMicaWindow();
+    auto result = _openMicaWindow(context);
     innerPromise.Resolve(result);
   };
 
@@ -250,7 +261,7 @@ void Testlib::openMicaWindow(::React::ReactPromise<double> &&promise) noexcept {
   if (dispatcher) {
     auto context = m_context;
     dispatcher.Post([promise = std::move(promise), context]() mutable {
-      auto result = _openMicaWindow();
+      auto result = _openMicaWindow(context);
       promise.Resolve(result);
     });
     return;

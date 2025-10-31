@@ -101,6 +101,9 @@
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
     <ClInclude Include="testlib.h" />
+    <ClInclude Include="DesktopWindow.h" />
+    <ClInclude Include="MicaWindow.h" />
+    <ClInclude Include="Utilities.h" />
     <ClInclude Include="ReactPackageProvider.h">
       <DependentUpon>ReactPackageProvider.idl</DependentUpon>
     </ClInclude>
@@ -110,6 +113,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="testlib.cpp" />
+    <ClCompile Include="MicaWindow.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
