@@ -1,15 +1,22 @@
 #include "pch.h"
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 #include <vector>
+
+#include <DispatcherQueue.h>
 
 #include <winrt/Microsoft.UI.Interop.h>
 #include <winrt/Microsoft.UI.Windowing.h>
 #include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.UI.Composition.h>
+#include <winrt/Windows.System.h>
+#include <winrt/Microsoft.ReactNative.Composition.h>
 
 #include "testlib.h"
 #include "MicaWindow.h"
+#include "Utilities.h"
 
 namespace winrt::testlib
 {
@@ -35,6 +42,44 @@ struct ReactWindowState
 inline std::vector<ReactWindowState> &ReactWindowStates() noexcept {
   static std::vector<ReactWindowState> states;
   return states;
+}
+
+inline std::vector<std::unique_ptr<MicaWindow>> &MicaWindows() noexcept {
+  static std::vector<std::unique_ptr<MicaWindow>> windows;
+  return windows;
+}
+
+inline void EnsureDispatcherQueueController() {
+  using winrt::Windows::System::DispatcherQueue;
+  using winrt::Windows::System::DispatcherQueueController;
+
+  if (DispatcherQueue::GetForCurrentThread() != nullptr) {
+    return;
+  }
+
+  static DispatcherQueueController controller{nullptr};
+  if (controller != nullptr) {
+    return;
+  }
+
+  DispatcherQueueOptions options{};
+  options.dwSize = sizeof(options);
+  options.threadType = DQTYPE_THREAD_CURRENT;
+  options.apartmentType = DQTAT_COM_STA;
+
+  ABI::Windows::System::IDispatcherQueueController *rawController = nullptr;
+  const auto hr = CreateDispatcherQueueController(options, &rawController);
+  if (SUCCEEDED(hr)) {
+    controller = DispatcherQueueController{rawController, winrt::take_ownership_from_abi};
+    return;
+  }
+
+  if (hr == HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED)) {
+    // Assume a controller already exists on this thread.
+    return;
+  }
+
+  winrt::throw_hresult(hr);
 }
 
 inline ReactWindowState *FindWindowState(winrt::Microsoft::UI::WindowId const &windowId) noexcept {
@@ -231,18 +276,33 @@ void Testlib::openNewWindow(::React::ReactPromise<double> &&promise) noexcept {
 }
 
 double _openMicaWindow(winrt::Microsoft::ReactNative::ReactContext const &context) noexcept {
-  auto reactHost = winrt::Microsoft::ReactNative::ReactNativeHost::FromContext(context.Handle());
-  if (reactHost == nullptr) {
-    return -2.0; // no ReactNativeHost available
+  try {
+    auto reactHost = winrt::Microsoft::ReactNative::ReactNativeHost::FromContext(context.Handle());
+    if (reactHost == nullptr) {
+      return -2.0; // no ReactNativeHost available
+    }
+
+    auto controller = Utilities::CreateDispatcherQueueControllerForCurrentThread();
+
+    static winrt::Windows::UI::Composition::Compositor sharedCompositor{nullptr};
+    if (!sharedCompositor) {
+      sharedCompositor = winrt::Windows::UI::Composition::Compositor();
+    }
+    if (!sharedCompositor) {
+      return -3.0; // failed to create compositor instance
+    }
+
+    MicaWindow::RegisterWindowClass();
+
+    auto &windows = detail::MicaWindows();
+    windows.push_back(std::make_unique<MicaWindow>(sharedCompositor, L"Hello, Mica!"));
+
+    return 1.0;
+  } catch (winrt::hresult_error const &error) {
+    return static_cast<double>(error.code());
+  } catch (...) {
+    return -5.0; // window creation failed with unexpected exception
   }
-  auto compositor = winrt::Microsoft::ReactNative::Composition::CompositionUIService::GetCompositor(reactHost.InstanceSettings().Properties());
-  if (compositor == nullptr) {
-    return -3.0; // no Compositor available
-  }
-  MicaWindow::RegisterWindowClass();
-  auto window = MicaWindow(compositor, L"Hello, Mica!");
-  // Mica window creation not implemented yet
-  return 1.0;
 }
 
 void Testlib::openMicaWindow(::React::ReactPromise<double> &&promise) noexcept {

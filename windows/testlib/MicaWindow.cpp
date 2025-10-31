@@ -16,6 +16,12 @@ const std::wstring MicaWindow::ClassName = L"MicaWindow";
 // static
 void MicaWindow::RegisterWindowClass()
 {
+    static bool registered = false;
+    if (registered)
+    {
+        return;
+    }
+
     auto instance = winrt::check_pointer(GetModuleHandleW(nullptr));
     WNDCLASSEX wcex = { sizeof(wcex) };
     wcex.style = CS_HREDRAW | CS_VREDRAW;
@@ -26,41 +32,66 @@ void MicaWindow::RegisterWindowClass()
     wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wcex.lpszClassName = ClassName.c_str();
     wcex.hIconSm = LoadIconW(wcex.hInstance, IDI_APPLICATION);
-    winrt::check_bool(RegisterClassExW(&wcex)); // check if the window class was registered succesfully
+
+    if (!RegisterClassExW(&wcex))
+    {
+        if (GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
+        {
+            winrt::throw_last_error();
+        }
+    }
+
+    registered = true;
 }
 
 // Create the main window and enable MICA
 MicaWindow::MicaWindow(const winrt::Compositor& compositor, const std::wstring& windowTitle)
 {
     auto instance = winrt::check_pointer(GetModuleHandleW(nullptr));
-    WINRT_ASSERT(!m_window); // check that window is not initialized
-    WINRT_VERIFY(
-        // Window Properties
-        CreateWindowExW(
-            WS_EX_COMPOSITED,
-            ClassName.c_str(), // declared in MicaWindow.h and defined above
-            windowTitle.c_str(),
-            WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT, 
-            800, 600, 
-            nullptr, 
-            nullptr, 
-            instance, 
-            this
-        ));
+    if (m_window)
+    {
+        winrt::throw_hresult(E_UNEXPECTED);
+    }
 
-    // Check that the window was created succesfully
-    WINRT_ASSERT(m_window);
+    HWND window = CreateWindowExW(
+        WS_EX_COMPOSITED,
+        ClassName.c_str(),
+        windowTitle.c_str(),
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        800,
+        600,
+        nullptr,
+        nullptr,
+        instance,
+        this);
+    if (!window)
+    {
+        winrt::throw_last_error();
+    }
+
+    // WM_NCCREATE associates the HWND with the instance, but fall back to the returned handle if needed.
+    if (!m_window)
+    {
+        m_window = window;
+    }
 
     ShowWindow(m_window, SW_SHOWDEFAULT);
     UpdateWindow(m_window);
 
-    // The Mica controller needs to set a target with a root to recognize the visual base layer
     m_target = CreateWindowTarget(compositor);
+    if (!m_target)
+    {
+        winrt::throw_hresult(E_FAIL);
+    }
 
-    // Need to set a root before we can enable Mica.
-    m_target.Root(compositor.CreateContainerVisual());
+    auto root = compositor.CreateContainerVisual();
+    if (!root)
+    {
+        winrt::throw_hresult(E_FAIL);
+    }
+    m_target.Root(root);
 
     m_micaController = winrt::MicaController();
     m_isMicaSupported = m_micaController.SetTarget(winrt::Microsoft::UI::WindowId{ reinterpret_cast<uint64_t>(m_window) }, m_target);
