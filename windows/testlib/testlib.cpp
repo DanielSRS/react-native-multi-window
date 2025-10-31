@@ -49,6 +49,20 @@ inline std::vector<std::unique_ptr<MicaWindow>> &MicaWindows() noexcept {
   return windows;
 }
 
+void RemoveMicaWindow(MicaWindow *window) noexcept {
+  if (!window) {
+    return;
+  }
+
+  auto &windows = MicaWindows();
+  windows.erase(
+      std::remove_if(
+          windows.begin(),
+          windows.end(),
+          [window](std::unique_ptr<MicaWindow> const &candidate) { return candidate.get() == window; }),
+      windows.end());
+}
+
 inline void EnsureDispatcherQueueController() {
   using winrt::Windows::System::DispatcherQueue;
   using winrt::Windows::System::DispatcherQueueController;

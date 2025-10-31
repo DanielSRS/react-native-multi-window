@@ -42,8 +42,10 @@ struct DesktopWindow
     {
         if (WM_DESTROY == message)
         {
-            PostQuitMessage(0);
-            return 0;
+            const HWND hwnd = m_window;
+            const auto result = DefWindowProc(hwnd, message, wparam, lparam);
+            m_window = nullptr;
+            return result;
         }
 
         return DefWindowProc(m_window, message, wparam, lparam);

@@ -23,3 +23,8 @@ private:
     winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController m_micaController{ nullptr };
     bool m_isMicaSupported{ false };
 };
+
+namespace winrt::testlib::detail
+{
+    void RemoveMicaWindow(MicaWindow *window) noexcept;
+}
