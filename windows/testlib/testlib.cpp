@@ -57,29 +57,10 @@ inline void EnsureDispatcherQueueController() {
     return;
   }
 
-  static DispatcherQueueController controller{nullptr};
-  if (controller != nullptr) {
-    return;
+  thread_local DispatcherQueueController controller{nullptr};
+  if (!controller) {
+    controller = Utilities::CreateDispatcherQueueControllerForCurrentThread();
   }
-
-  DispatcherQueueOptions options{};
-  options.dwSize = sizeof(options);
-  options.threadType = DQTYPE_THREAD_CURRENT;
-  options.apartmentType = DQTAT_COM_STA;
-
-  ABI::Windows::System::IDispatcherQueueController *rawController = nullptr;
-  const auto hr = CreateDispatcherQueueController(options, &rawController);
-  if (SUCCEEDED(hr)) {
-    controller = DispatcherQueueController{rawController, winrt::take_ownership_from_abi};
-    return;
-  }
-
-  if (hr == HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED)) {
-    // Assume a controller already exists on this thread.
-    return;
-  }
-
-  winrt::throw_hresult(hr);
 }
 
 inline ReactWindowState *FindWindowState(winrt::Microsoft::UI::WindowId const &windowId) noexcept {
@@ -282,7 +263,7 @@ double _openMicaWindow(winrt::Microsoft::ReactNative::ReactContext const &contex
       return -2.0; // no ReactNativeHost available
     }
 
-    auto controller = Utilities::CreateDispatcherQueueControllerForCurrentThread();
+    detail::EnsureDispatcherQueueController();
 
     static winrt::Windows::UI::Composition::Compositor sharedCompositor{nullptr};
     if (!sharedCompositor) {
