@@ -19,6 +19,7 @@ struct TestlibSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
   static constexpr auto methods = std::tuple{
       SyncMethod<double(double, double) noexcept>{0, L"multiply"},
       Method<void(Promise<double>) noexcept>{1, L"openNewWindow"},
+      Method<void(Promise<double>) noexcept>{2, L"openMicaWindow"},
   };
 
   template <class TModule>
@@ -35,6 +36,11 @@ struct TestlibSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
           "openNewWindow",
           "    REACT_METHOD(openNewWindow) void openNewWindow(::React::ReactPromise<double> &&result) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(openNewWindow) static void openNewWindow(::React::ReactPromise<double> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          2,
+          "openMicaWindow",
+          "    REACT_METHOD(openMicaWindow) void openMicaWindow(::React::ReactPromise<double> &&result) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(openMicaWindow) static void openMicaWindow(::React::ReactPromise<double> &&result) noexcept { /* implementation */ }\n");
   }
 };
 

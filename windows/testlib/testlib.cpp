@@ -229,4 +229,34 @@ void Testlib::openNewWindow(::React::ReactPromise<double> &&promise) noexcept {
   promise.Reject(L"no_dispatcher. UIDispatcher is not available.");
 }
 
+double _openMicaWindow() noexcept {
+  // Mica window creation not implemented yet
+  return -1.0;
+}
+
+void Testlib::openMicaWindow(::React::ReactPromise<double> &&promise) noexcept {
+  auto dispatcher = m_context.UIDispatcher();
+
+  auto fulfill = [context = m_context](::React::ReactPromise<double> &&innerPromise) mutable {
+    auto result = _openMicaWindow();
+    innerPromise.Resolve(result);
+  };
+
+  if (dispatcher && dispatcher.HasThreadAccess()) {
+    fulfill(std::move(promise));
+    return;
+  }
+
+  if (dispatcher) {
+    auto context = m_context;
+    dispatcher.Post([promise = std::move(promise), context]() mutable {
+      auto result = _openMicaWindow();
+      promise.Resolve(result);
+    });
+    return;
+  }
+  // Mica window creation not implemented yet
+  promise.Reject(L"Mica window creation is not implemented.");
+}
+
 } // namespace winrt::testlib
