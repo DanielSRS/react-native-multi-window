@@ -21,6 +21,7 @@ struct MicaWindow : DesktopWindow<MicaWindow>
     struct ApplyMicaResult
     {
         winrt::Windows::UI::Composition::CompositionTarget Target{ nullptr };
+        winrt::Windows::UI::Composition::Visual Root{ nullptr };
         winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController Controller{ nullptr };
         bool IsSupported{ false };
     };

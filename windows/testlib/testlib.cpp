@@ -13,11 +13,8 @@
 #include <winrt/Microsoft.UI.Composition.SystemBackdrops.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.UI.Composition.h>
-#include <winrt/Windows.UI.Composition.Desktop.h>
 #include <winrt/Windows.System.h>
 #include <winrt/Microsoft.ReactNative.Composition.h>
-
-#include <windows.ui.composition.interop.h>
 
 #include "testlib.h"
 #include "MicaWindow.h"
@@ -319,34 +316,24 @@ inline double OpenReactWindow(
   compositionHost.Initialize(reinterpret_cast<uint64_t>(hwnd));
 
   if (windowType == WindowType::DefaultWithMica) {
-    micaController = winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController();
-
     try {
       auto compositor = EnsureThreadLocalCompositor();
-      auto interop = compositor.as<ABI::Windows::UI::Composition::Desktop::ICompositorDesktopInterop>();
+      auto micaResult = MicaWindow::applyMica(compositor, hwnd);
 
-      winrt::Windows::UI::Composition::Desktop::DesktopWindowTarget desktopTarget{nullptr};
-      winrt::check_hresult(interop->CreateDesktopWindowTarget(
-          hwnd,
-          false,
-          reinterpret_cast<ABI::Windows::UI::Composition::Desktop::IDesktopWindowTarget **>(put_abi(desktopTarget))));
-
-      auto rootVisual = compositor.CreateContainerVisual();
-      rootVisual.RelativeSizeAdjustment({1.0f, 1.0f});
-      desktopTarget.Root(rootVisual);
-
-      micaCompositionTarget = desktopTarget.as<winrt::Windows::UI::Composition::CompositionTarget>();
-
-      const bool setTarget = micaController.SetTarget(windowId, micaCompositionTarget);
-
-      bool backdropTargetSet = true;
-      if (auto supportsBackdrop =
-              micaCompositionTarget.try_as<winrt::Microsoft::UI::Composition::ICompositionSupportsSystemBackdrop>()) {
-        backdropTargetSet = micaController.AddSystemBackdropTarget(supportsBackdrop);
+      if (!micaResult.Target || !micaResult.Controller) {
+        throw winrt::hresult_error(E_FAIL);
       }
 
-      micaRoot = rootVisual;
-      micaSupported = setTarget && backdropTargetSet;
+      // bool backdropTargetSet = true;
+      // if (auto supportsBackdrop =
+      //         micaResult.Target.try_as<winrt::Microsoft::UI::Composition::ICompositionSupportsSystemBackdrop>()) {
+      //   backdropTargetSet = micaResult.Controller.AddSystemBackdropTarget(supportsBackdrop);
+      // }
+
+      micaCompositionTarget = micaResult.Target;
+      micaRoot = micaResult.Root ? micaResult.Root : micaCompositionTarget.Root();
+      micaController = micaResult.Controller;
+      micaSupported = micaResult.IsSupported; // && backdropTargetSet;
 
       if (!micaSupported) {
         throw winrt::hresult_error(E_FAIL);

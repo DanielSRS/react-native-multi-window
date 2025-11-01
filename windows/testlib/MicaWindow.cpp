@@ -4,6 +4,10 @@
 
 #include "MicaWindow.h"
 
+#include <winrt/Windows.UI.Composition.Desktop.h>
+
+#include <windows.ui.composition.interop.h>
+
 namespace winrt
 {
     using namespace Microsoft::UI::Composition::SystemBackdrops;
@@ -110,64 +114,49 @@ LRESULT MicaWindow::MessageHandler(const UINT message, const WPARAM wparam, cons
 }
 
 MicaWindow::ApplyMicaResult MicaWindow::applyMica(const winrt::Windows::UI::Composition::Compositor& compositor, HWND window) noexcept
-
 {
     ApplyMicaResult result{};
 
     try
     {
         if (!compositor || !window)
-
-        {
-            return result;
-
-        }
-
-        // Use DesktopWindow<T>::CreateWindowTarget helper via a shim to ensure consistency.
-        struct WindowTargetShim : DesktopWindow<WindowTargetShim> {};
-
-        WindowTargetShim shim;
-        shim.m_window = window;
-
-        auto target = shim.CreateWindowTarget(compositor);
-        if (!target)
         {
             return result;
         }
 
-        // Create and attach a root visual
+        auto interop = compositor.as<ABI::Windows::UI::Composition::Desktop::ICompositorDesktopInterop>();
+
+        winrt::Windows::UI::Composition::Desktop::DesktopWindowTarget desktopTarget{nullptr};
+        winrt::check_hresult(interop->CreateDesktopWindowTarget(
+            window,
+            false,
+            reinterpret_cast<ABI::Windows::UI::Composition::Desktop::IDesktopWindowTarget **>(winrt::put_abi(desktopTarget))));
+
         auto root = compositor.CreateContainerVisual();
-
         if (!root)
         {
             return result;
-
         }
-        target.Root(root);
+        root.RelativeSizeAdjustment({1.0f, 1.0f});
+        desktopTarget.Root(root);
 
-
-
-        // Create the Mica controller and set the target
+        auto compositionTarget = desktopTarget.as<winrt::Windows::UI::Composition::CompositionTarget>();
 
         winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController controller;
-
         controller = winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController();
 
-        bool supported = controller.SetTarget(winrt::Microsoft::UI::WindowId{ reinterpret_cast<uint64_t>(window) }, target);
+        bool supported = controller.SetTarget(
+            winrt::Microsoft::UI::WindowId{ reinterpret_cast<uint64_t>(window) },
+            compositionTarget);
 
-
-
-        result.Target = target;
-
+        result.Target = compositionTarget;
+        result.Root = root;
         result.Controller = controller;
-
         result.IsSupported = supported;
-
     }
     catch (...)
     {
         // Leave defaults in result on failure
-
     }
     return result;
 }
