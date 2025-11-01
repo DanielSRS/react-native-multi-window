@@ -108,3 +108,66 @@ LRESULT MicaWindow::MessageHandler(const UINT message, const WPARAM wparam, cons
 
     return base_type::MessageHandler(message, wparam, lparam);
 }
+
+MicaWindow::ApplyMicaResult MicaWindow::applyMica(const winrt::Windows::UI::Composition::Compositor& compositor, HWND window) noexcept
+
+{
+    ApplyMicaResult result{};
+
+    try
+    {
+        if (!compositor || !window)
+
+        {
+            return result;
+
+        }
+
+        // Use DesktopWindow<T>::CreateWindowTarget helper via a shim to ensure consistency.
+        struct WindowTargetShim : DesktopWindow<WindowTargetShim> {};
+
+        WindowTargetShim shim;
+        shim.m_window = window;
+
+        auto target = shim.CreateWindowTarget(compositor);
+        if (!target)
+        {
+            return result;
+        }
+
+        // Create and attach a root visual
+        auto root = compositor.CreateContainerVisual();
+
+        if (!root)
+        {
+            return result;
+
+        }
+        target.Root(root);
+
+
+
+        // Create the Mica controller and set the target
+
+        winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController controller;
+
+        controller = winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController();
+
+        bool supported = controller.SetTarget(winrt::Microsoft::UI::WindowId{ reinterpret_cast<uint64_t>(window) }, target);
+
+
+
+        result.Target = target;
+
+        result.Controller = controller;
+
+        result.IsSupported = supported;
+
+    }
+    catch (...)
+    {
+        // Leave defaults in result on failure
+
+    }
+    return result;
+}

@@ -18,6 +18,15 @@ struct MicaWindow : DesktopWindow<MicaWindow>
     winrt::Windows::UI::Composition::Visual Root() { return m_target.Root(); }
     void Root(const winrt::Windows::UI::Composition::Visual& visual) { m_target.Root(visual); }
 
+    struct ApplyMicaResult
+    {
+        winrt::Windows::UI::Composition::CompositionTarget Target{ nullptr };
+        winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController Controller{ nullptr };
+        bool IsSupported{ false };
+    };
+
+    static ApplyMicaResult applyMica(const winrt::Windows::UI::Composition::Compositor& compositor, HWND window) noexcept;
+
 private:
     winrt::Windows::UI::Composition::CompositionTarget m_target{ nullptr };
     winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController m_micaController{ nullptr };

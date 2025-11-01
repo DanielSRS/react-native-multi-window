@@ -18,6 +18,7 @@ namespace testlibCodegen {
 inline winrt::Microsoft::ReactNative::FieldMap GetStructInfo(TestlibSpec_WindowOptions*) noexcept {
     winrt::Microsoft::ReactNative::FieldMap fieldMap {
         {L"title", &TestlibSpec_WindowOptions::title},
+        {L"windows_WindowType", &TestlibSpec_WindowOptions::windows_WindowType},
     };
     return fieldMap;
 }

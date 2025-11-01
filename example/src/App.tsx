@@ -31,7 +31,8 @@ export default function App() {
     };
   }, []);
   return (
-    <View style={[styles.container, { backgroundColor }]}>
+    <View style={[styles.container]}>
+      <View style={[{ backgroundColor, height: 100, width: 100 }]}></View>
       <Text key={v}>count: {up.c}</Text>
       <Text>Resultt: {result}</Text>
       <Button
@@ -46,6 +47,7 @@ export default function App() {
           try {
             const responseCode = await openNewWindow({
               title: 'Agora vai',
+              windows_WindowType: 0,
             });
             console.log('Response code from openNewWindow:', responseCode);
           } catch (error) {
@@ -54,6 +56,21 @@ export default function App() {
         }}
         title="Open New Window"
         color={'#841584'}
+      />
+      <Button
+        onPress={async () => {
+          try {
+            const responseCode = await openNewWindow({
+              title: 'Agora vai with mica?',
+              windows_WindowType: 2,
+            });
+            console.log('Response code from openNewWindow:', responseCode);
+          } catch (error) {
+            console.error('Failed to open new window:', error);
+          }
+        }}
+        title="Open New Window with mica effect"
+        color={'#fcfc1eff'}
       />
       <Button
         onPress={async () => {

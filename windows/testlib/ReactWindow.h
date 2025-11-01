@@ -6,6 +6,8 @@
 
 #include <winrt/Microsoft.ReactNative.Composition.h>
 #include <winrt/Microsoft.UI.Windowing.h>
+#include <winrt/Microsoft.UI.Composition.SystemBackdrops.h>
+#include <winrt/Windows.UI.Composition.h>
 
 struct MicaWindow;
 
@@ -18,6 +20,7 @@ struct ReactWindow
   {
     AppWindow,
     MicaWindow,
+    MicaAppWindow,
   };
 
   struct AppWindowData
@@ -32,7 +35,18 @@ struct ReactWindow
     std::unique_ptr<::MicaWindow> Window{};
   };
 
-  using WindowVariant = std::variant<std::monostate, AppWindowData, MicaWindowData>;
+  struct MicaAppWindowData
+  {
+    winrt::Microsoft::UI::Windowing::AppWindow Window{nullptr};
+    winrt::event_token ChangedToken{};
+    winrt::event_token DestroyingToken{};
+    winrt::Windows::UI::Composition::Visual RootVisual{nullptr};
+    winrt::Windows::UI::Composition::CompositionTarget CompositionTarget{nullptr};
+    winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController Controller{nullptr};
+    bool IsSupported{false};
+  };
+
+  using WindowVariant = std::variant<std::monostate, AppWindowData, MicaWindowData, MicaAppWindowData>;
 
   Type Kind{Type::AppWindow};
   WindowVariant Window{std::monostate{}};
@@ -60,6 +74,23 @@ struct ReactWindow
     return result;
   }
 
+  static ReactWindow CreateMicaAppWindow(
+      winrt::Microsoft::UI::Windowing::AppWindow const &appWindow,
+      winrt::Windows::UI::Composition::Visual const &rootVisual,
+      winrt::Windows::UI::Composition::CompositionTarget const &compositionTarget,
+      winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController const &controller,
+      bool isSupported,
+      winrt::Microsoft::ReactNative::CompositionHwndHost const &compositionHost,
+      winrt::Microsoft::ReactNative::IReactViewHost const &viewHost)
+  {
+    ReactWindow result;
+    result.Kind = Type::MicaAppWindow;
+    result.Window = MicaAppWindowData{appWindow, {}, {}, rootVisual, compositionTarget, controller, isSupported};
+    result.CompositionHost = compositionHost;
+    result.ViewHost = viewHost;
+    return result;
+  }
+
   AppWindowData *App() noexcept
   {
     return Kind == Type::AppWindow ? std::get_if<AppWindowData>(&Window) : nullptr;
@@ -78,6 +109,16 @@ struct ReactWindow
   MicaWindowData const *Mica() const noexcept
   {
     return Kind == Type::MicaWindow ? std::get_if<MicaWindowData>(&Window) : nullptr;
+  }
+
+  MicaAppWindowData *MicaApp() noexcept
+  {
+    return Kind == Type::MicaAppWindow ? std::get_if<MicaAppWindowData>(&Window) : nullptr;
+  }
+
+  MicaAppWindowData const *MicaApp() const noexcept
+  {
+    return Kind == Type::MicaAppWindow ? std::get_if<MicaAppWindowData>(&Window) : nullptr;
   }
 };
 

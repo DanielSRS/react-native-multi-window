@@ -10,10 +10,14 @@
 
 #include <winrt/Microsoft.UI.Interop.h>
 #include <winrt/Microsoft.UI.Windowing.h>
+#include <winrt/Microsoft.UI.Composition.SystemBackdrops.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.UI.Composition.h>
+#include <winrt/Windows.UI.Composition.Desktop.h>
 #include <winrt/Windows.System.h>
 #include <winrt/Microsoft.ReactNative.Composition.h>
+
+#include <windows.ui.composition.interop.h>
 
 #include "testlib.h"
 #include "MicaWindow.h"
@@ -30,6 +34,42 @@ constexpr int kErrorCreateWindow = -111;
 constexpr int kErrorLookupWindowHandle = -112;
 constexpr int kErrorReactNativeHostUnavailable = -113;
 constexpr int kErrorCreateViewHost = -114;
+constexpr int kErrorEnableMica = -115;
+
+enum class WindowType
+{
+  Default = 0,
+  Mica = 1,
+  DefaultWithMica = 2,
+};
+
+inline WindowType ParseWindowType(double value) noexcept {
+  const auto type = static_cast<int>(value);
+  switch (type) {
+  case 1:
+    return WindowType::Mica;
+  case 2:
+    return WindowType::DefaultWithMica;
+  default:
+    return WindowType::Default;
+  }
+}
+
+inline winrt::Windows::UI::Composition::Compositor EnsureThreadLocalCompositor() {
+  using winrt::Windows::System::DispatcherQueue;
+  if (DispatcherQueue::GetForCurrentThread() == nullptr) {
+    thread_local winrt::Windows::System::DispatcherQueueController controller{nullptr};
+    if (!controller) {
+      controller = Utilities::CreateDispatcherQueueControllerForCurrentThread();
+    }
+  }
+
+  thread_local winrt::Windows::UI::Composition::Compositor compositor{nullptr};
+  if (!compositor) {
+    compositor = winrt::Windows::UI::Composition::Compositor();
+  }
+  return compositor;
+}
 
 inline std::vector<ReactWindow> &ReactWindows() noexcept {
   static std::vector<ReactWindow> windows;
@@ -107,7 +147,6 @@ double Open(winrt::Microsoft::ReactNative::ReactContext const &context) noexcept
       return -3.0; // failed to create compositor instance
     }
 
-    MicaWindow::RegisterWindowClass();
 
   auto window = std::make_unique<MicaWindow>(compositor, kWindowTitle);
   ReactWindows().push_back(ReactWindow::CreateMicaWindow(std::move(window)));
@@ -124,8 +163,17 @@ double Open(winrt::Microsoft::ReactNative::ReactContext const &context) noexcept
 inline ReactWindow *FindWindow(winrt::Microsoft::UI::WindowId const &windowId) noexcept {
   auto &windows = ReactWindows();
   auto it = std::find_if(windows.begin(), windows.end(), [&windowId](ReactWindow const &candidate) {
-    auto app = candidate.App();
-    return app && app->Window && app->Window.Id() == windowId;
+    if (auto app = candidate.App()) {
+      if (app->Window && app->Window.Id() == windowId) {
+        return true;
+      }
+    }
+
+    if (auto micaApp = candidate.MicaApp()) {
+      return micaApp->Window && micaApp->Window.Id() == windowId;
+    }
+
+    return false;
   });
   return it == windows.end() ? nullptr : &(*it);
 }
@@ -144,6 +192,8 @@ inline const wchar_t *ErrorMessageFor(int errorCode) noexcept {
     return L"ReactNativeHost is not available.";
   case kErrorCreateViewHost:
     return L"Failed to create React view host for the window.";
+  case kErrorEnableMica:
+    return L"Failed to enable Mica on the window.";
   default:
     return L"Failed to create a React window.";
   }
@@ -161,16 +211,34 @@ inline void RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const &windo
   auto &windows = ReactWindows();
   windows.erase(
       std::remove_if(windows.begin(), windows.end(), [windowId = window.Id()](ReactWindow &entry) {
-        auto app = entry.App();
-        if (!(app && app->Window && app->Window.Id() == windowId)) {
+        auto detachTokens = [windowId](auto &data) {
+          if (data.Window && data.Window.Id() == windowId) {
+            if (data.ChangedToken.value != 0) {
+              data.Window.Changed(data.ChangedToken);
+            }
+            if (data.DestroyingToken.value != 0) {
+              data.Window.Destroying(data.DestroyingToken);
+            }
+            return true;
+          }
           return false;
+        };
+
+        bool matched = false;
+        if (auto app = entry.App()) {
+          matched = detachTokens(*app);
+        } else if (auto micaApp = entry.MicaApp()) {
+          matched = detachTokens(*micaApp);
+          if (matched) {
+            micaApp->RootVisual = nullptr;
+            micaApp->CompositionTarget = nullptr;
+            micaApp->Controller = nullptr;
+            micaApp->IsSupported = false;
+          }
         }
 
-        if (app->ChangedToken.value != 0) {
-          app->Window.Changed(app->ChangedToken);
-        }
-        if (app->DestroyingToken.value != 0) {
-          app->Window.Destroying(app->DestroyingToken);
+        if (!matched) {
+          return false;
         }
 
         if (entry.ViewHost) {
@@ -193,8 +261,8 @@ inline void RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const &windo
 }
 
 inline double OpenReactWindow(
-  winrt::Microsoft::ReactNative::ReactContext const &context,
-  testlibCodegen::TestlibSpec_WindowOptions const &options) noexcept {
+    winrt::Microsoft::ReactNative::ReactContext const &context,
+    testlibCodegen::TestlibSpec_WindowOptions const &options) noexcept {
   using winrt::Microsoft::ReactNative::CompositionHwndHost;
   using winrt::Microsoft::ReactNative::ReactCoreInjection;
   using winrt::Microsoft::ReactNative::ReactNativeHost;
@@ -212,6 +280,12 @@ inline double OpenReactWindow(
     return static_cast<double>(kErrorLookupWindowHandle);
   }
 
+  const auto windowType = ParseWindowType(options.windows_WindowType);
+  winrt::Windows::UI::Composition::Visual micaRoot{nullptr};
+  winrt::Windows::UI::Composition::CompositionTarget micaCompositionTarget{nullptr};
+  winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController micaController{nullptr};
+  bool micaSupported = false;
+
   auto reactHost = ReactNativeHost::FromContext(context.Handle());
   if (reactHost == nullptr) {
     appWindow.Destroy();
@@ -223,7 +297,6 @@ inline double OpenReactWindow(
 
   auto instanceSettings = reactHost.InstanceSettings();
   auto properties = instanceSettings.Properties();
-
   auto previousWindowId = ReactCoreInjection::GetTopLevelWindowId(properties);
   ReactCoreInjection::SetTopLevelWindowId(properties, reinterpret_cast<uint64_t>(hwnd));
 
@@ -245,13 +318,63 @@ inline double OpenReactWindow(
   compositionHost.ReactViewHost(viewHost);
   compositionHost.Initialize(reinterpret_cast<uint64_t>(hwnd));
 
+  if (windowType == WindowType::DefaultWithMica) {
+    micaController = winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController();
+
+    try {
+      auto compositor = EnsureThreadLocalCompositor();
+      auto interop = compositor.as<ABI::Windows::UI::Composition::Desktop::ICompositorDesktopInterop>();
+
+      winrt::Windows::UI::Composition::Desktop::DesktopWindowTarget desktopTarget{nullptr};
+      winrt::check_hresult(interop->CreateDesktopWindowTarget(
+          hwnd,
+          false,
+          reinterpret_cast<ABI::Windows::UI::Composition::Desktop::IDesktopWindowTarget **>(put_abi(desktopTarget))));
+
+      auto rootVisual = compositor.CreateContainerVisual();
+      rootVisual.RelativeSizeAdjustment({1.0f, 1.0f});
+      desktopTarget.Root(rootVisual);
+
+      micaCompositionTarget = desktopTarget.as<winrt::Windows::UI::Composition::CompositionTarget>();
+
+      const bool setTarget = micaController.SetTarget(windowId, micaCompositionTarget);
+
+      bool backdropTargetSet = true;
+      if (auto supportsBackdrop =
+              micaCompositionTarget.try_as<winrt::Microsoft::UI::Composition::ICompositionSupportsSystemBackdrop>()) {
+        backdropTargetSet = micaController.AddSystemBackdropTarget(supportsBackdrop);
+      }
+
+      micaRoot = rootVisual;
+      micaSupported = setTarget && backdropTargetSet;
+
+      if (!micaSupported) {
+        throw winrt::hresult_error(E_FAIL);
+      }
+    } catch (...) {
+      appWindow.Destroy();
+      return static_cast<double>(kErrorEnableMica);
+    }
+  }
+
   auto &windows = ReactWindows();
-  windows.push_back(ReactWindow::CreateAppWindow(appWindow, compositionHost, viewHost));
+  if (windowType == WindowType::DefaultWithMica) {
+     windows.push_back(ReactWindow::CreateMicaAppWindow(
+       appWindow,
+       micaRoot,
+       micaCompositionTarget,
+       micaController,
+       micaSupported,
+       compositionHost,
+       viewHost));
+  } else {
+    windows.push_back(ReactWindow::CreateAppWindow(appWindow, compositionHost, viewHost));
+  }
   auto &storedWindow = windows.back();
 
-  storedWindow.App()->ChangedToken = appWindow.Changed([](
-                                             winrt::Microsoft::UI::Windowing::AppWindow const &sender,
-                                             winrt::Microsoft::UI::Windowing::AppWindowChangedEventArgs const &args) {
+  auto changedToken = appWindow.Changed([](
+      winrt::Microsoft::UI::Windowing::AppWindow const &sender,
+      winrt::Microsoft::UI::Windowing::AppWindowChangedEventArgs const &args) {
     if (args.DidSizeChange() || args.DidPresenterChange()) {
       if (auto windowPtr = FindWindow(sender.Id())) {
         UpdateCompositionHostSize(*windowPtr);
@@ -259,10 +382,18 @@ inline double OpenReactWindow(
     }
   });
 
-  storedWindow.App()->DestroyingToken = appWindow.Destroying([](
+  auto destroyingToken = appWindow.Destroying([](
       winrt::Microsoft::UI::Windowing::AppWindow const &sender, winrt::Windows::Foundation::IInspectable const &) {
     RemoveWindow(sender);
   });
+
+  if (auto appData = storedWindow.App()) {
+    appData->ChangedToken = changedToken;
+    appData->DestroyingToken = destroyingToken;
+  } else if (auto micaAppData = storedWindow.MicaApp()) {
+    micaAppData->ChangedToken = changedToken;
+    micaAppData->DestroyingToken = destroyingToken;
+  }
 
   if (!options.title.empty()) {
     appWindow.Title(winrt::to_hstring(options.title));

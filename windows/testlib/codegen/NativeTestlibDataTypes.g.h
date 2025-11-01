@@ -18,6 +18,7 @@ namespace testlibCodegen {
 
 struct TestlibSpec_WindowOptions {
     std::string title;
+    double windows_WindowType;
 };
 
 } // namespace testlibCodegen
