@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -191,7 +192,9 @@ inline void RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const &windo
       windows.end());
 }
 
-inline double OpenReactWindow(winrt::Microsoft::ReactNative::ReactContext const &context) noexcept {
+inline double OpenReactWindow(
+  winrt::Microsoft::ReactNative::ReactContext const &context,
+  testlibCodegen::TestlibSpec_WindowOptions const &options) noexcept {
   using winrt::Microsoft::ReactNative::CompositionHwndHost;
   using winrt::Microsoft::ReactNative::ReactCoreInjection;
   using winrt::Microsoft::ReactNative::ReactNativeHost;
@@ -261,7 +264,11 @@ inline double OpenReactWindow(winrt::Microsoft::ReactNative::ReactContext const 
     RemoveWindow(sender);
   });
 
-  appWindow.Title(L"New Window from RN");
+  if (!options.title.empty()) {
+    appWindow.Title(winrt::to_hstring(options.title));
+  } else {
+    appWindow.Title(L"New Window from RN");
+  }
   appWindow.Show();
 
   UpdateCompositionHostSize(storedWindow);
@@ -281,11 +288,13 @@ double Testlib::multiply(double a, double b) noexcept {
   return a * b;
 }
 
-void Testlib::openNewWindow(::React::ReactPromise<double> &&promise) noexcept {
+void Testlib::openNewWindow(WindowOptions && options, ::React::ReactPromise<double> &&promise) noexcept {
   auto dispatcher = m_context.UIDispatcher();
 
-  auto fulfill = [context = m_context](::React::ReactPromise<double> &&innerPromise) mutable {
-    auto result = detail::OpenReactWindow(context);
+  auto fulfill = [context = m_context](
+                     WindowOptions opts,
+                     ::React::ReactPromise<double> &&innerPromise) mutable {
+    auto result = detail::OpenReactWindow(context, opts);
     if (result >= 0) {
       innerPromise.Resolve(result);
     } else {
@@ -294,19 +303,15 @@ void Testlib::openNewWindow(::React::ReactPromise<double> &&promise) noexcept {
   };
 
   if (dispatcher && dispatcher.HasThreadAccess()) {
-    fulfill(std::move(promise));
+    fulfill(std::move(options), std::move(promise));
     return;
   }
 
   if (dispatcher) {
-    auto context = m_context;
-    dispatcher.Post([promise = std::move(promise), context]() mutable {
-      auto result = detail::OpenReactWindow(context);
-      if (result >= 0) {
-        promise.Resolve(result);
-      } else {
-        promise.Reject(detail::ErrorMessageFor(static_cast<int>(result)));
-      }
+    dispatcher.Post([fulfill,
+                     opts = std::move(options),
+                     promise = std::move(promise)]() mutable {
+      fulfill(std::move(opts), std::move(promise));
     });
     return;
   }

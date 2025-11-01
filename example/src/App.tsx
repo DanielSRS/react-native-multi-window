@@ -44,7 +44,9 @@ export default function App() {
       <Button
         onPress={async () => {
           try {
-            const responseCode = await openNewWindow();
+            const responseCode = await openNewWindow({
+              title: 'Agora vai',
+            });
             console.log('Response code from openNewWindow:', responseCode);
           } catch (error) {
             console.error('Failed to open new window:', error);

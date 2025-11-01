@@ -19,6 +19,7 @@ REACT_MODULE(Testlib)
 struct Testlib
 {
   using ModuleSpec = testlibCodegen::TestlibSpec;
+  using WindowOptions = testlibCodegen::TestlibSpec_WindowOptions;
 
   REACT_INIT(Initialize)
   void Initialize(React::ReactContext const &reactContext) noexcept;
@@ -27,7 +28,7 @@ struct Testlib
   double multiply(double a, double b) noexcept;
 
   REACT_METHOD(openNewWindow)
-  void openNewWindow(::React::ReactPromise<double> &&result) noexcept;
+  void openNewWindow(WindowOptions && options, ::React::ReactPromise<double> &&result) noexcept;
 
   REACT_METHOD(openMicaWindow)
   void openMicaWindow(::React::ReactPromise<double> &&result) noexcept;
