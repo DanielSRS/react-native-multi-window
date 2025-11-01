@@ -103,7 +103,7 @@ LRESULT MicaWindow::MessageHandler(const UINT message, const WPARAM wparam, cons
     if (WM_DESTROY == message)
     {
         m_micaController = nullptr;
-        winrt::testlib::detail::RemoveMicaWindow(this);
+        winrt::testlib::detail::mica::Untrack(this);
     }
 
     return base_type::MessageHandler(message, wparam, lparam);

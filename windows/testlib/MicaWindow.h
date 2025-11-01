@@ -24,7 +24,7 @@ private:
     bool m_isMicaSupported{ false };
 };
 
-namespace winrt::testlib::detail
+namespace winrt::testlib::detail::mica
 {
-    void RemoveMicaWindow(MicaWindow *window) noexcept;
+    void Untrack(MicaWindow *window) noexcept;
 }

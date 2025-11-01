@@ -16,6 +16,7 @@
 
 #include "testlib.h"
 #include "MicaWindow.h"
+#include "ReactWindow.h"
 #include "Utilities.h"
 
 namespace winrt::testlib
@@ -29,60 +30,107 @@ constexpr int kErrorLookupWindowHandle = -112;
 constexpr int kErrorReactNativeHostUnavailable = -113;
 constexpr int kErrorCreateViewHost = -114;
 
-// Keep references alive for as long as the secondary window exists.
-struct ReactWindowState
-{
-  winrt::Microsoft::UI::Windowing::AppWindow Window{nullptr};
-  winrt::Microsoft::ReactNative::CompositionHwndHost CompositionHost{nullptr};
-  winrt::Microsoft::ReactNative::IReactViewHost ViewHost{nullptr};
-  winrt::event_token WindowChangedToken{};
-  winrt::event_token WindowDestroyingToken{};
-};
-
-inline std::vector<ReactWindowState> &ReactWindowStates() noexcept {
-  static std::vector<ReactWindowState> states;
-  return states;
-}
-
-inline std::vector<std::unique_ptr<MicaWindow>> &MicaWindows() noexcept {
-  static std::vector<std::unique_ptr<MicaWindow>> windows;
+inline std::vector<ReactWindow> &ReactWindows() noexcept {
+  static std::vector<ReactWindow> windows;
   return windows;
 }
 
-void RemoveMicaWindow(MicaWindow *window) noexcept {
-  if (!window) {
-    return;
-  }
+namespace mica
+{
+namespace
+{
 
-  auto &windows = MicaWindows();
-  windows.erase(
-      std::remove_if(
-          windows.begin(),
-          windows.end(),
-          [window](std::unique_ptr<MicaWindow> const &candidate) { return candidate.get() == window; }),
-      windows.end());
+constexpr wchar_t kWindowTitle[] = L"Hello, Mica!";
+
+inline winrt::Windows::UI::Composition::Compositor &SharedCompositor() noexcept {
+  static winrt::Windows::UI::Composition::Compositor compositor{nullptr};
+  return compositor;
 }
 
 inline void EnsureDispatcherQueueController() {
+  // Composition APIs require a dispatcher queue on the owning thread.
   using winrt::Windows::System::DispatcherQueue;
-  using winrt::Windows::System::DispatcherQueueController;
-
   if (DispatcherQueue::GetForCurrentThread() != nullptr) {
     return;
   }
 
-  thread_local DispatcherQueueController controller{nullptr};
+  thread_local winrt::Windows::System::DispatcherQueueController controller{nullptr};
   if (!controller) {
     controller = Utilities::CreateDispatcherQueueControllerForCurrentThread();
   }
 }
 
-inline ReactWindowState *FindWindowState(winrt::Microsoft::UI::WindowId const &windowId) noexcept {
-  auto &states = ReactWindowStates();
-  auto it = std::find_if(states.begin(), states.end(), [&windowId](ReactWindowState const &candidate) {
-    return candidate.Window && candidate.Window.Id() == windowId;
+inline winrt::Windows::UI::Composition::Compositor EnsureCompositor() {
+  EnsureDispatcherQueueController();
+
+  auto &compositor = SharedCompositor();
+  if (!compositor) {
+    compositor = winrt::Windows::UI::Composition::Compositor();
+  }
+  return compositor;
+}
+
+} // namespace
+
+void Untrack(MicaWindow *window) noexcept {
+  if (!window) {
+    return;
+  }
+
+  auto &windows = ReactWindows();
+  windows.erase(
+      std::remove_if(
+          windows.begin(),
+          windows.end(),
+          [window](ReactWindow &entry) {
+            auto mica = entry.Mica();
+            if (!mica || mica->Window.get() != window) {
+              return false;
+            }
+
+            mica->Window.reset();
+            return true;
+          }),
+      windows.end());
+}
+
+double Open(winrt::Microsoft::ReactNative::ReactContext const &context) noexcept {
+  try {
+    auto reactHost = winrt::Microsoft::ReactNative::ReactNativeHost::FromContext(context.Handle());
+    if (reactHost == nullptr) {
+      return -2.0; // no ReactNativeHost available
+    }
+
+    auto compositor = EnsureCompositor();
+    if (!compositor) {
+      return -3.0; // failed to create compositor instance
+    }
+
+    MicaWindow::RegisterWindowClass();
+
+  auto window = std::make_unique<MicaWindow>(compositor, kWindowTitle);
+  ReactWindows().push_back(ReactWindow::CreateMicaWindow(std::move(window)));
+    return 1.0;
+  } catch (winrt::hresult_error const &error) {
+    return static_cast<double>(error.code());
+  } catch (...) {
+    return -5.0; // window creation failed with unexpected exception
+  }
+}
+
+} // namespace mica
+
+inline ReactWindow *FindWindow(winrt::Microsoft::UI::WindowId const &windowId) noexcept {
+  auto &windows = ReactWindows();
+  auto it = std::find_if(windows.begin(), windows.end(), [&windowId](ReactWindow const &candidate) {
+    auto app = candidate.App();
+    return app && app->Window && app->Window.Id() == windowId;
   });
-  return it == states.end() ? nullptr : &(*it);
+  return it == windows.end() ? nullptr : &(*it);
+}
+
+inline ReactWindow *FindWindow(winrt::Microsoft::UI::Windowing::AppWindow const &window) noexcept {
+  return FindWindow(window.Id());
 }
 
 inline const wchar_t *ErrorMessageFor(int errorCode) noexcept {
@@ -100,32 +148,33 @@ inline const wchar_t *ErrorMessageFor(int errorCode) noexcept {
   }
 }
 
-inline void UpdateCompositionHostSize(ReactWindowState &state) noexcept {
-  if (!state.Window || !state.CompositionHost) {
+inline void UpdateCompositionHostSize(ReactWindow &window) noexcept {
+  if (!window.CompositionHost) {
     return;
   }
 
-  state.CompositionHost.TranslateMessage(WM_WINDOWPOSCHANGED, 0, 0);
+  window.CompositionHost.TranslateMessage(WM_WINDOWPOSCHANGED, 0, 0);
 }
 
-inline void PruneWindowState(winrt::Microsoft::UI::Windowing::AppWindow const &window) noexcept {
-  auto &states = ReactWindowStates();
-  states.erase(
-      std::remove_if(states.begin(), states.end(), [windowId = window.Id()](ReactWindowState &state) {
-        if (!(state.Window && state.Window.Id() == windowId)) {
+inline void RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const &window) noexcept {
+  auto &windows = ReactWindows();
+  windows.erase(
+      std::remove_if(windows.begin(), windows.end(), [windowId = window.Id()](ReactWindow &entry) {
+        auto app = entry.App();
+        if (!(app && app->Window && app->Window.Id() == windowId)) {
           return false;
         }
 
-        if (state.WindowChangedToken.value != 0) {
-          state.Window.Changed(state.WindowChangedToken);
+        if (app->ChangedToken.value != 0) {
+          app->Window.Changed(app->ChangedToken);
         }
-        if (state.WindowDestroyingToken.value != 0) {
-          state.Window.Destroying(state.WindowDestroyingToken);
+        if (app->DestroyingToken.value != 0) {
+          app->Window.Destroying(app->DestroyingToken);
         }
 
-        if (state.ViewHost) {
+        if (entry.ViewHost) {
           try {
-            auto unloadAction = state.ViewHost.UnloadViewInstance();
+            auto unloadAction = entry.ViewHost.UnloadViewInstance();
             if (unloadAction) {
               unloadAction.Completed([](auto &&, auto &&) {});
             }
@@ -133,15 +182,13 @@ inline void PruneWindowState(winrt::Microsoft::UI::Windowing::AppWindow const &w
           }
         }
 
-        state.Window = nullptr;
-        state.CompositionHost = nullptr;
-        state.ViewHost = nullptr;
-        state.WindowChangedToken = {};
-        state.WindowDestroyingToken = {};
+        entry.CompositionHost = nullptr;
+        entry.ViewHost = nullptr;
+        entry.Window = std::monostate{};
 
         return true;
       }),
-      states.end());
+      windows.end());
 }
 
 inline double OpenReactWindow(winrt::Microsoft::ReactNative::ReactContext const &context) noexcept {
@@ -195,32 +242,29 @@ inline double OpenReactWindow(winrt::Microsoft::ReactNative::ReactContext const 
   compositionHost.ReactViewHost(viewHost);
   compositionHost.Initialize(reinterpret_cast<uint64_t>(hwnd));
 
-  auto &states = ReactWindowStates();
-  states.emplace_back();
-  auto &storedState = states.back();
-  storedState.Window = appWindow;
-  storedState.CompositionHost = compositionHost;
-  storedState.ViewHost = viewHost;
+  auto &windows = ReactWindows();
+  windows.push_back(ReactWindow::CreateAppWindow(appWindow, compositionHost, viewHost));
+  auto &storedWindow = windows.back();
 
-  storedState.WindowChangedToken = appWindow.Changed([](
+  storedWindow.App()->ChangedToken = appWindow.Changed([](
                                              winrt::Microsoft::UI::Windowing::AppWindow const &sender,
                                              winrt::Microsoft::UI::Windowing::AppWindowChangedEventArgs const &args) {
     if (args.DidSizeChange() || args.DidPresenterChange()) {
-      if (auto statePtr = FindWindowState(sender.Id())) {
-        UpdateCompositionHostSize(*statePtr);
+      if (auto windowPtr = FindWindow(sender.Id())) {
+        UpdateCompositionHostSize(*windowPtr);
       }
     }
   });
 
-  storedState.WindowDestroyingToken = appWindow.Destroying([](
+  storedWindow.App()->DestroyingToken = appWindow.Destroying([](
       winrt::Microsoft::UI::Windowing::AppWindow const &sender, winrt::Windows::Foundation::IInspectable const &) {
-    PruneWindowState(sender);
+    RemoveWindow(sender);
   });
 
   appWindow.Title(L"New Window from RN");
   appWindow.Show();
 
-  UpdateCompositionHostSize(storedState);
+  UpdateCompositionHostSize(storedWindow);
 
   return static_cast<double>(windowId.Value);
 }
@@ -270,41 +314,11 @@ void Testlib::openNewWindow(::React::ReactPromise<double> &&promise) noexcept {
   promise.Reject(L"no_dispatcher. UIDispatcher is not available.");
 }
 
-double _openMicaWindow(winrt::Microsoft::ReactNative::ReactContext const &context) noexcept {
-  try {
-    auto reactHost = winrt::Microsoft::ReactNative::ReactNativeHost::FromContext(context.Handle());
-    if (reactHost == nullptr) {
-      return -2.0; // no ReactNativeHost available
-    }
-
-    detail::EnsureDispatcherQueueController();
-
-    static winrt::Windows::UI::Composition::Compositor sharedCompositor{nullptr};
-    if (!sharedCompositor) {
-      sharedCompositor = winrt::Windows::UI::Composition::Compositor();
-    }
-    if (!sharedCompositor) {
-      return -3.0; // failed to create compositor instance
-    }
-
-    MicaWindow::RegisterWindowClass();
-
-    auto &windows = detail::MicaWindows();
-    windows.push_back(std::make_unique<MicaWindow>(sharedCompositor, L"Hello, Mica!"));
-
-    return 1.0;
-  } catch (winrt::hresult_error const &error) {
-    return static_cast<double>(error.code());
-  } catch (...) {
-    return -5.0; // window creation failed with unexpected exception
-  }
-}
-
 void Testlib::openMicaWindow(::React::ReactPromise<double> &&promise) noexcept {
   auto dispatcher = m_context.UIDispatcher();
 
   auto fulfill = [context = m_context](::React::ReactPromise<double> &&innerPromise) mutable {
-    auto result = _openMicaWindow(context);
+    auto result = detail::mica::Open(context);
     innerPromise.Resolve(result);
   };
 
@@ -316,7 +330,7 @@ void Testlib::openMicaWindow(::React::ReactPromise<double> &&promise) noexcept {
   if (dispatcher) {
     auto context = m_context;
     dispatcher.Post([promise = std::move(promise), context]() mutable {
-      auto result = _openMicaWindow(context);
+      auto result = detail::mica::Open(context);
       promise.Resolve(result);
     });
     return;
