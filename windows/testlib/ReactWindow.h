@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include <utility>
 #include <variant>
 
@@ -8,8 +7,6 @@
 #include <winrt/Microsoft.UI.Windowing.h>
 #include <winrt/Microsoft.UI.Composition.SystemBackdrops.h>
 #include <winrt/Windows.UI.Composition.h>
-
-struct MicaWindow;
 
 namespace winrt::testlib::detail
 {
@@ -19,7 +16,6 @@ struct ReactWindow
   enum class Type
   {
     AppWindow,
-    MicaWindow,
     MicaAppWindow,
   };
 
@@ -28,11 +24,6 @@ struct ReactWindow
     winrt::Microsoft::UI::Windowing::AppWindow Window{nullptr};
     winrt::event_token ChangedToken{};
     winrt::event_token DestroyingToken{};
-  };
-
-  struct MicaWindowData
-  {
-    std::unique_ptr<::MicaWindow> Window{};
   };
 
   struct MicaAppWindowData
@@ -46,7 +37,7 @@ struct ReactWindow
     bool IsSupported{false};
   };
 
-  using WindowVariant = std::variant<std::monostate, AppWindowData, MicaWindowData, MicaAppWindowData>;
+  using WindowVariant = std::variant<std::monostate, AppWindowData, MicaAppWindowData>;
 
   Type Kind{Type::AppWindow};
   WindowVariant Window{std::monostate{}};
@@ -63,14 +54,6 @@ struct ReactWindow
     result.Window = AppWindowData{appWindow};
     result.CompositionHost = compositionHost;
     result.ViewHost = viewHost;
-    return result;
-  }
-
-  static ReactWindow CreateMicaWindow(std::unique_ptr<::MicaWindow> window) noexcept
-  {
-    ReactWindow result;
-    result.Kind = Type::MicaWindow;
-    result.Window = MicaWindowData{std::move(window)};
     return result;
   }
 
@@ -99,16 +82,6 @@ struct ReactWindow
   AppWindowData const *App() const noexcept
   {
     return Kind == Type::AppWindow ? std::get_if<AppWindowData>(&Window) : nullptr;
-  }
-
-  MicaWindowData *Mica() noexcept
-  {
-    return Kind == Type::MicaWindow ? std::get_if<MicaWindowData>(&Window) : nullptr;
-  }
-
-  MicaWindowData const *Mica() const noexcept
-  {
-    return Kind == Type::MicaWindow ? std::get_if<MicaWindowData>(&Window) : nullptr;
   }
 
   MicaAppWindowData *MicaApp() noexcept

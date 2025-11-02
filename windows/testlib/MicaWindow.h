@@ -33,8 +33,3 @@ private:
     winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController m_micaController{ nullptr };
     bool m_isMicaSupported{ false };
 };
-
-namespace winrt::testlib::detail::mica
-{
-    void Untrack(MicaWindow *window) noexcept;
-}

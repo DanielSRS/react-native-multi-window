@@ -30,9 +30,6 @@ struct Testlib
   REACT_METHOD(openNewWindow)
   void openNewWindow(WindowOptions && options, ::React::ReactPromise<double> &&result) noexcept;
 
-  REACT_METHOD(openMicaWindow)
-  void openMicaWindow(::React::ReactPromise<double> &&result) noexcept;
-
 private:
   React::ReactContext m_context;
 };

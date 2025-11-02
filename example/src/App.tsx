@@ -1,5 +1,5 @@
 import { Text, View, StyleSheet, Button } from 'react-native';
-import { multiply, openMicaWindow, openNewWindow } from '../../src/index';
+import { multiply, openNewWindow } from '../../src/index';
 import { useEffect, useMemo, useState } from 'react';
 
 const result = multiply(3, 7);
@@ -71,18 +71,6 @@ export default function App() {
         }}
         title="Open New Window with mica effect"
         color={'#fcfc1eff'}
-      />
-      <Button
-        onPress={async () => {
-          try {
-            const responseCode = await openMicaWindow();
-            console.log('Response code from openMicaWindow:', responseCode);
-          } catch (error) {
-            console.error('Failed to open mica window:', error);
-          }
-        }}
-        title="Open Mica Window"
-        color={'#307fb3ff'}
       />
     </View>
   );

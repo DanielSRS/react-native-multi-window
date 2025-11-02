@@ -8,7 +8,3 @@ export function multiply(a: number, b: number): number {
 export function openNewWindow(windowOptions: WindowOptions): Promise<number> {
   return Testlib.openNewWindow(windowOptions);
 }
-
-export function openMicaWindow(): Promise<number> {
-  return Testlib.openMicaWindow();
-}

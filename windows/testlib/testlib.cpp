@@ -36,7 +36,6 @@ constexpr int kErrorEnableMica = -115;
 enum class WindowType
 {
   Default = 0,
-  Mica = 1,
   DefaultWithMica = 2,
 };
 
@@ -44,7 +43,7 @@ inline WindowType ParseWindowType(double value) noexcept {
   const auto type = static_cast<int>(value);
   switch (type) {
   case 1:
-    return WindowType::Mica;
+    return WindowType::DefaultWithMica;
   case 2:
     return WindowType::DefaultWithMica;
   default:
@@ -72,90 +71,6 @@ inline std::vector<ReactWindow> &ReactWindows() noexcept {
   static std::vector<ReactWindow> windows;
   return windows;
 }
-
-namespace mica
-{
-namespace
-{
-
-constexpr wchar_t kWindowTitle[] = L"Hello, Mica!";
-
-inline winrt::Windows::UI::Composition::Compositor &SharedCompositor() noexcept {
-  static winrt::Windows::UI::Composition::Compositor compositor{nullptr};
-  return compositor;
-}
-
-inline void EnsureDispatcherQueueController() {
-  // Composition APIs require a dispatcher queue on the owning thread.
-  using winrt::Windows::System::DispatcherQueue;
-  if (DispatcherQueue::GetForCurrentThread() != nullptr) {
-    return;
-  }
-
-  thread_local winrt::Windows::System::DispatcherQueueController controller{nullptr};
-  if (!controller) {
-    controller = Utilities::CreateDispatcherQueueControllerForCurrentThread();
-  }
-}
-
-inline winrt::Windows::UI::Composition::Compositor EnsureCompositor() {
-  EnsureDispatcherQueueController();
-
-  auto &compositor = SharedCompositor();
-  if (!compositor) {
-    compositor = winrt::Windows::UI::Composition::Compositor();
-  }
-  return compositor;
-}
-
-} // namespace
-
-void Untrack(MicaWindow *window) noexcept {
-  if (!window) {
-    return;
-  }
-
-  auto &windows = ReactWindows();
-  windows.erase(
-      std::remove_if(
-          windows.begin(),
-          windows.end(),
-          [window](ReactWindow &entry) {
-            auto mica = entry.Mica();
-            if (!mica || mica->Window.get() != window) {
-              return false;
-            }
-
-            mica->Window.reset();
-            return true;
-          }),
-      windows.end());
-}
-
-double Open(winrt::Microsoft::ReactNative::ReactContext const &context) noexcept {
-  try {
-    auto reactHost = winrt::Microsoft::ReactNative::ReactNativeHost::FromContext(context.Handle());
-    if (reactHost == nullptr) {
-      return -2.0; // no ReactNativeHost available
-    }
-
-    auto compositor = EnsureCompositor();
-    if (!compositor) {
-      return -3.0; // failed to create compositor instance
-    }
-
-
-  auto window = std::make_unique<MicaWindow>(compositor, kWindowTitle);
-  ReactWindows().push_back(ReactWindow::CreateMicaWindow(std::move(window)));
-    return 1.0;
-  } catch (winrt::hresult_error const &error) {
-    return static_cast<double>(error.code());
-  } catch (...) {
-    return -5.0; // window creation failed with unexpected exception
-  }
-}
-
-} // namespace mica
 
 inline ReactWindow *FindWindow(winrt::Microsoft::UI::WindowId const &windowId) noexcept {
   auto &windows = ReactWindows();
@@ -435,31 +350,6 @@ void Testlib::openNewWindow(WindowOptions && options, ::React::ReactPromise<doub
   }
 
   promise.Reject(L"no_dispatcher. UIDispatcher is not available.");
-}
-
-void Testlib::openMicaWindow(::React::ReactPromise<double> &&promise) noexcept {
-  auto dispatcher = m_context.UIDispatcher();
-
-  auto fulfill = [context = m_context](::React::ReactPromise<double> &&innerPromise) mutable {
-    auto result = detail::mica::Open(context);
-    innerPromise.Resolve(result);
-  };
-
-  if (dispatcher && dispatcher.HasThreadAccess()) {
-    fulfill(std::move(promise));
-    return;
-  }
-
-  if (dispatcher) {
-    auto context = m_context;
-    dispatcher.Post([promise = std::move(promise), context]() mutable {
-      auto result = detail::mica::Open(context);
-      promise.Resolve(result);
-    });
-    return;
-  }
-  // Mica window creation not implemented yet
-  promise.Reject(L"Mica window creation is not implemented.");
 }
 
 } // namespace winrt::testlib
