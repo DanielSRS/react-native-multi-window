@@ -20,209 +20,21 @@
 namespace
 {
 
-struct PrimaryWindowMicaState
-{
-  bool TryInitialize(winrt::Microsoft::UI::Windowing::AppWindow const &appWindow) noexcept
-  {
-    const auto hwnd = winrt::Microsoft::UI::GetWindowFromWindowId(appWindow.Id());
-    if (!hwnd)
+  inline auto CreateDispatcherQueueControllerForCurrentThread()
     {
-      return false;
+        namespace abi = ABI::Windows::System;
+
+        DispatcherQueueOptions options
+        {
+            sizeof(DispatcherQueueOptions),
+            DQTYPE_THREAD_CURRENT,
+            DQTAT_COM_NONE
+        };
+
+        winrt::Windows::System::DispatcherQueueController controller{ nullptr };
+        winrt::check_hresult(CreateDispatcherQueueController(options, reinterpret_cast<abi::IDispatcherQueueController**>(winrt::put_abi(controller))));
+        return controller;
     }
-
-    if (m_enabled && hwnd == m_hwnd && m_compositionTarget)
-    {
-      return true;
-    }
-
-    try
-    {
-      if (!EnsureDispatcherQueue() || !EnsureCompositor())
-      {
-        return false;
-      }
-
-      winrt::Windows::UI::Composition::Desktop::DesktopWindowTarget desktopTarget{nullptr};
-      auto interop = m_compositor.as<ABI::Windows::UI::Composition::Desktop::ICompositorDesktopInterop>();
-      if (!interop)
-      {
-        return false;
-      }
-
-      winrt::check_hresult(interop->CreateDesktopWindowTarget(
-          hwnd,
-          false,
-          reinterpret_cast<ABI::Windows::UI::Composition::Desktop::IDesktopWindowTarget **>(winrt::put_abi(desktopTarget))));
-
-      auto compositionTarget = desktopTarget.as<winrt::Windows::UI::Composition::CompositionTarget>();
-      auto previousRoot = compositionTarget.Root();
-
-      auto container = m_compositor.CreateContainerVisual();
-      if (!container)
-      {
-        return false;
-      }
-      container.RelativeSizeAdjustment({1.0f, 1.0f});
-
-      if (previousRoot)
-      {
-        // Keep the existing content by making it a child of our container.
-        container.Children().InsertAtTop(previousRoot);
-      }
-
-      compositionTarget.Root(container);
-
-      auto controller = winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController();
-      bool supported = false;
-
-      try
-      {
-        supported = controller.SetTarget(
-            winrt::Microsoft::UI::WindowId{reinterpret_cast<uint64_t>(hwnd)},
-            compositionTarget);
-      }
-      catch (...)
-      {
-        supported = false;
-      }
-
-      if (!supported)
-      {
-        compositionTarget.Root(previousRoot);
-        return false;
-      }
-
-      m_hwnd = hwnd;
-      m_compositionTarget = compositionTarget;
-      m_root = container;
-      m_originalRoot = previousRoot;
-      m_controller = controller;
-      m_enabled = true;
-      return true;
-    }
-    catch (...)
-    {
-      Reset();
-      return false;
-    }
-  }
-
-  void Reset() noexcept
-  {
-    if (m_compositionTarget)
-    {
-      try
-      {
-        m_compositionTarget.Root(m_originalRoot);
-      }
-      catch (...)
-      {
-      }
-    }
-
-    m_controller = nullptr;
-    m_root = nullptr;
-    m_compositionTarget = nullptr;
-    m_originalRoot = nullptr;
-    m_hwnd = nullptr;
-    m_enabled = false;
-  }
-
-private:
-  bool EnsureDispatcherQueue() noexcept
-  {
-    using winrt::Windows::System::DispatcherQueue;
-    if (DispatcherQueue::GetForCurrentThread())
-    {
-      return true;
-    }
-
-    if (!m_dispatcherQueueController)
-    {
-      DispatcherQueueOptions options{
-          sizeof(DispatcherQueueOptions),
-          DQTYPE_THREAD_CURRENT,
-          DQTAT_COM_NONE};
-
-      winrt::check_hresult(CreateDispatcherQueueController(
-          options,
-          reinterpret_cast<ABI::Windows::System::IDispatcherQueueController **>(
-              winrt::put_abi(m_dispatcherQueueController))));
-    }
-
-    return static_cast<bool>(m_dispatcherQueueController);
-  }
-
-  bool EnsureCompositor() noexcept
-  {
-    if (!m_compositor)
-    {
-      m_compositor = winrt::Windows::UI::Composition::Compositor();
-    }
-    return static_cast<bool>(m_compositor);
-  }
-
-  winrt::Windows::System::DispatcherQueueController m_dispatcherQueueController{nullptr};
-  winrt::Windows::UI::Composition::Compositor m_compositor{nullptr};
-  winrt::Windows::UI::Composition::CompositionTarget m_compositionTarget{nullptr};
-  winrt::Windows::UI::Composition::ContainerVisual m_root{nullptr}; // Keeps the wrapper container alive.
-  winrt::Windows::UI::Composition::Visual m_originalRoot{nullptr};
-  winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController m_controller{nullptr};
-  HWND m_hwnd{nullptr};
-  bool m_enabled{false};
-};
-
-PrimaryWindowMicaState &PrimaryMicaState() noexcept
-{
-  static PrimaryWindowMicaState state;
-  return state;
-}
-
-bool TryEnablePrimaryWindowMica(winrt::Microsoft::UI::Windowing::AppWindow const &appWindow) noexcept
-{
-  return PrimaryMicaState().TryInitialize(appWindow);
-}
-
-struct PrimaryMicaBootstrapper
-{
-  void Ensure(winrt::Microsoft::UI::Windowing::AppWindow const &appWindow) noexcept
-  {
-    if (TryEnablePrimaryWindowMica(appWindow))
-    {
-      if (m_subscribed)
-      {
-        appWindow.Changed(m_changedToken);
-        m_subscribed = false;
-      }
-      return;
-    }
-
-    if (m_subscribed)
-    {
-      return;
-    }
-
-    auto self = this;
-    m_changedToken = appWindow.Changed([self](auto const &sender, auto const & /*args*/) {
-      if (TryEnablePrimaryWindowMica(sender))
-      {
-        sender.Changed(self->m_changedToken);
-        self->m_subscribed = false;
-      }
-    });
-    m_subscribed = true;
-  }
-
-private:
-  winrt::event_token m_changedToken{};
-  bool m_subscribed{false};
-};
-
-PrimaryMicaBootstrapper &PrimaryMica() noexcept
-{
-  static PrimaryMicaBootstrapper bootstrapper;
-  return bootstrapper;
-}
 
 } // namespace
 
@@ -291,7 +103,27 @@ _Use_decl_annotations_ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, PSTR 
   appWindow.Title(L"TestlibExample");
   appWindow.Resize({1000, 600});
 
-  PrimaryMica().Ensure(appWindow);
+  // setting mica
+  auto queueController = CreateDispatcherQueueControllerForCurrentThread();
+  auto compositor = winrt::Windows::UI::Composition::Compositor();
+  auto hwnd = winrt::Microsoft::UI::GetWindowFromWindowId(appWindow.Id());
+  winrt::Windows::UI::Composition::Desktop::DesktopWindowTarget desktopTarget{nullptr};
+  auto interop = compositor.as<ABI::Windows::UI::Composition::Desktop::ICompositorDesktopInterop>();
+  winrt::check_hresult(interop->CreateDesktopWindowTarget(
+      hwnd,
+      false,
+      reinterpret_cast<ABI::Windows::UI::Composition::Desktop::IDesktopWindowTarget **>(winrt::put_abi(desktopTarget))));
+
+  auto compositionTarget = desktopTarget.as<winrt::Windows::UI::Composition::CompositionTarget>();
+  auto container = compositor.CreateContainerVisual();
+  container.RelativeSizeAdjustment({1.0f, 1.0f});
+  compositionTarget.Root(container);
+
+  auto controller = winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController();
+  bool supported = controller.SetTarget(
+      winrt::Microsoft::UI::WindowId{reinterpret_cast<uint64_t>(hwnd)},
+      compositionTarget);
+  // end setting mica
 
   // Get the ReactViewOptions so we can set the initial RN component to load
   auto viewOptions{reactNativeWin32App.ReactViewOptions()};
