@@ -36,6 +36,9 @@ namespace
         return controller;
     }
 
+  inline auto PBNM = winrt::Microsoft::ReactNative::ReactPropertyBagHelper::GetNamespace(L"ReactNative.InstanceSettings");
+  inline auto CompositorProperty = winrt::Microsoft::ReactNative::ReactPropertyBagHelper::GetName(PBNM, L"Windows::UI::Composition::Compositor");
+
 } // namespace
 
 // A PackageProvider containing any turbo modules you define within this app project
@@ -124,6 +127,10 @@ _Use_decl_annotations_ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, PSTR 
       winrt::Microsoft::UI::WindowId{reinterpret_cast<uint64_t>(hwnd)},
       compositionTarget);
   // end setting mica
+
+  // save compositor
+  settings.Properties().Set(CompositorProperty, compositor);
+  // end save compositor
 
   // Get the ReactViewOptions so we can set the initial RN component to load
   auto viewOptions{reactNativeWin32App.ReactViewOptions()};

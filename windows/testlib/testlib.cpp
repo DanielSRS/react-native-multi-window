@@ -51,7 +51,23 @@ inline WindowType ParseWindowType(double value) noexcept {
   }
 }
 
-inline winrt::Windows::UI::Composition::Compositor EnsureThreadLocalCompositor() {
+inline auto PBNM = winrt::Microsoft::ReactNative::ReactPropertyBagHelper::GetNamespace(L"ReactNative.InstanceSettings");
+inline auto CompositorProperty = winrt::Microsoft::ReactNative::ReactPropertyBagHelper::GetName(PBNM, L"Windows::UI::Composition::Compositor");
+
+inline winrt::Windows::UI::Composition::Compositor EnsureThreadLocalCompositor(
+  winrt::Microsoft::ReactNative::ReactContext const &context
+) {
+  thread_local winrt::Windows::UI::Composition::Compositor compositor{nullptr};
+  if (compositor) {
+    return compositor;
+  }
+  auto reactHost = winrt::Microsoft::ReactNative::ReactNativeHost::FromContext(context.Handle());
+  auto instanceSettings = reactHost.InstanceSettings();
+  auto properties = instanceSettings.Properties();
+  compositor = winrt::unbox_value<winrt::Windows::UI::Composition::Compositor>(properties.Get(CompositorProperty));
+  if (compositor) {
+    return compositor;
+  }
   using winrt::Windows::System::DispatcherQueue;
   if (DispatcherQueue::GetForCurrentThread() == nullptr) {
     thread_local winrt::Windows::System::DispatcherQueueController controller{nullptr};
@@ -59,11 +75,7 @@ inline winrt::Windows::UI::Composition::Compositor EnsureThreadLocalCompositor()
       controller = Utilities::CreateDispatcherQueueControllerForCurrentThread();
     }
   }
-
-  thread_local winrt::Windows::UI::Composition::Compositor compositor{nullptr};
-  if (!compositor) {
-    compositor = winrt::Windows::UI::Composition::Compositor();
-  }
+  compositor = winrt::Windows::UI::Composition::Compositor();
   return compositor;
 }
 
@@ -232,7 +244,7 @@ inline double OpenReactWindow(
 
   if (windowType == WindowType::DefaultWithMica) {
     try {
-      auto compositor = EnsureThreadLocalCompositor();
+      auto compositor = EnsureThreadLocalCompositor(context);
       auto micaResult = MicaWindow::applyMica(compositor, hwnd);
 
       if (!micaResult.Target || !micaResult.Controller) {
