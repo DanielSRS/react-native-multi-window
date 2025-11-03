@@ -1,7 +1,7 @@
 {
   "name": "testlib",
   "version": "0.0.1",
-  "description": "dgsf",
+  "description": "A React Native module to manage multiple windows in a React Native application.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -48,14 +48,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DanielSRS/asdf.git"
+    "url": "git+https://github.com/DanielSRS/react-native-multi-window.git"
   },
   "author": "Daniel Santa Rosa <Daniel_srs_@hotmail.com> (https://github.com/DanielSRS)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/DanielSRS/asdf/issues"
+    "url": "https://github.com/DanielSRS/react-native-multi-window/issues"
   },
-  "homepage": "https://github.com/DanielSRS/asdf#readme",
+  "homepage": "https://github.com/DanielSRS/react-native-multi-window#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
