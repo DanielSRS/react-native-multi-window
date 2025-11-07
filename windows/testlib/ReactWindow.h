@@ -11,13 +11,14 @@
 namespace winrt::testlib::detail
 {
 
+enum class WindowType
+{
+  DEFAULT = 0,
+  MICA = 2,
+};
+
 struct ReactWindow
 {
-  enum class WindowType
-  {
-    DEFAULT = 0,
-    MICA = 2,
-  };
 
   struct AppWindowData
   {
@@ -94,5 +95,18 @@ struct ReactWindow
     return Kind == WindowType::MICA ? std::get_if<MicaAppWindowData>(&Window) : nullptr;
   }
 };
+
+// Parse a numeric window type (from JS) into the native WindowType.
+inline WindowType ParseWindowType(double value) noexcept {
+  const auto type = static_cast<int>(value);
+  switch (type) {
+  case 1:
+  case 2:
+    // historical values 1 and 2 mapped to "DefaultWithMica" — map them to MICA
+    return WindowType::MICA;
+  default:
+    return WindowType::DEFAULT;
+  }
+}
 
 } // namespace winrt::testlib::detail

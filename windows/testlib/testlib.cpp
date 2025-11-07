@@ -33,23 +33,6 @@ constexpr int kErrorReactNativeHostUnavailable = -113;
 constexpr int kErrorCreateViewHost = -114;
 constexpr int kErrorEnableMica = -115;
 
-enum class WindowType
-{
-  Default = 0,
-  DefaultWithMica = 2,
-};
-
-inline WindowType ParseWindowType(double value) noexcept {
-  const auto type = static_cast<int>(value);
-  switch (type) {
-  case 1:
-    return WindowType::DefaultWithMica;
-  case 2:
-    return WindowType::DefaultWithMica;
-  default:
-    return WindowType::Default;
-  }
-}
 
 inline auto PBNM = winrt::Microsoft::ReactNative::ReactPropertyBagHelper::GetNamespace(L"ReactNative.InstanceSettings");
 inline auto CompositorProperty = winrt::Microsoft::ReactNative::ReactPropertyBagHelper::GetName(PBNM, L"Windows::UI::Composition::Compositor");
@@ -242,7 +225,7 @@ inline double OpenReactWindow(
   compositionHost.ReactViewHost(viewHost);
   compositionHost.Initialize(reinterpret_cast<uint64_t>(hwnd));
 
-  if (windowType == WindowType::DefaultWithMica) {
+  if (windowType == WindowType::MICA) {
     try {
       auto compositor = EnsureThreadLocalCompositor(context);
       auto micaResult = MicaWindow::applyMica(compositor, hwnd);
@@ -272,7 +255,7 @@ inline double OpenReactWindow(
   }
 
   auto &windows = ReactWindows();
-  if (windowType == WindowType::DefaultWithMica) {
+  if (windowType == WindowType::MICA) {
      windows.push_back(ReactWindow::CreateMicaAppWindow(
        appWindow,
        micaRoot,
