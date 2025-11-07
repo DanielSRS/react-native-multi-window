@@ -34,33 +34,6 @@ constexpr int kErrorCreateViewHost = -114;
 constexpr int kErrorEnableMica = -115;
 
 
-inline auto PBNM = winrt::Microsoft::ReactNative::ReactPropertyBagHelper::GetNamespace(L"ReactNative.InstanceSettings");
-inline auto CompositorProperty = winrt::Microsoft::ReactNative::ReactPropertyBagHelper::GetName(PBNM, L"Windows::UI::Composition::Compositor");
-
-inline winrt::Windows::UI::Composition::Compositor EnsureThreadLocalCompositor(
-  winrt::Microsoft::ReactNative::ReactContext const &context
-) {
-  thread_local winrt::Windows::UI::Composition::Compositor compositor{nullptr};
-  if (compositor) {
-    return compositor;
-  }
-  auto reactHost = winrt::Microsoft::ReactNative::ReactNativeHost::FromContext(context.Handle());
-  auto instanceSettings = reactHost.InstanceSettings();
-  auto properties = instanceSettings.Properties();
-  compositor = winrt::unbox_value<winrt::Windows::UI::Composition::Compositor>(properties.Get(CompositorProperty));
-  if (compositor) {
-    return compositor;
-  }
-  using winrt::Windows::System::DispatcherQueue;
-  if (DispatcherQueue::GetForCurrentThread() == nullptr) {
-    thread_local winrt::Windows::System::DispatcherQueueController controller{nullptr};
-    if (!controller) {
-      controller = Utilities::CreateDispatcherQueueControllerForCurrentThread();
-    }
-  }
-  compositor = winrt::Windows::UI::Composition::Compositor();
-  return compositor;
-}
 
 inline std::vector<ReactWindow> &ReactWindows() noexcept {
   static std::vector<ReactWindow> windows;
@@ -227,7 +200,7 @@ inline double OpenReactWindow(
 
   if (windowType == WindowType::MICA) {
     try {
-      auto compositor = EnsureThreadLocalCompositor(context);
+  auto compositor = Utilities::EnsureThreadLocalCompositor(context);
       auto micaResult = MicaWindow::applyMica(compositor, hwnd);
 
       if (!micaResult.Target || !micaResult.Controller) {
