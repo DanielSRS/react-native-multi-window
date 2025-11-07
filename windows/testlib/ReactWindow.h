@@ -13,7 +13,7 @@ namespace winrt::testlib::detail
 
 struct ReactWindow
 {
-  enum class Type
+  enum class WindowType
   {
     DEFAULT = 0,
     MICA = 2,
@@ -39,7 +39,7 @@ struct ReactWindow
 
   using WindowVariant = std::variant<std::monostate, AppWindowData, MicaAppWindowData>;
 
-  Type Kind{Type::DEFAULT};
+  WindowType Kind{WindowType::DEFAULT};
   WindowVariant Window{std::monostate{}};
   winrt::Microsoft::ReactNative::CompositionHwndHost CompositionHost{nullptr};
   winrt::Microsoft::ReactNative::IReactViewHost ViewHost{nullptr};
@@ -50,7 +50,7 @@ struct ReactWindow
       winrt::Microsoft::ReactNative::IReactViewHost const &viewHost)
   {
     ReactWindow result;
-  result.Kind = Type::DEFAULT;
+  result.Kind = WindowType::DEFAULT;
     result.Window = AppWindowData{appWindow};
     result.CompositionHost = compositionHost;
     result.ViewHost = viewHost;
@@ -67,7 +67,7 @@ struct ReactWindow
       winrt::Microsoft::ReactNative::IReactViewHost const &viewHost)
   {
     ReactWindow result;
-  result.Kind = Type::MICA;
+  result.Kind = WindowType::MICA;
     result.Window = MicaAppWindowData{appWindow, {}, {}, rootVisual, compositionTarget, controller, isSupported};
     result.CompositionHost = compositionHost;
     result.ViewHost = viewHost;
@@ -76,22 +76,22 @@ struct ReactWindow
 
   AppWindowData *App() noexcept
   {
-    return Kind == Type::DEFAULT ? std::get_if<AppWindowData>(&Window) : nullptr;
+    return Kind == WindowType::DEFAULT ? std::get_if<AppWindowData>(&Window) : nullptr;
   }
 
   AppWindowData const *App() const noexcept
   {
-    return Kind == Type::DEFAULT ? std::get_if<AppWindowData>(&Window) : nullptr;
+    return Kind == WindowType::DEFAULT ? std::get_if<AppWindowData>(&Window) : nullptr;
   }
 
   MicaAppWindowData *MicaApp() noexcept
   {
-    return Kind == Type::MICA ? std::get_if<MicaAppWindowData>(&Window) : nullptr;
+    return Kind == WindowType::MICA ? std::get_if<MicaAppWindowData>(&Window) : nullptr;
   }
 
   MicaAppWindowData const *MicaApp() const noexcept
   {
-    return Kind == Type::MICA ? std::get_if<MicaAppWindowData>(&Window) : nullptr;
+    return Kind == WindowType::MICA ? std::get_if<MicaAppWindowData>(&Window) : nullptr;
   }
 };
 
