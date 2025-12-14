@@ -1,7 +1,7 @@
 {
   "name": "react-native-multi-window",
-  "version": "0.1.0",
-  "description": "M",
+  "version": "0.0.1",
+  "description": "Create and manage multiple windows in a React Native app",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
