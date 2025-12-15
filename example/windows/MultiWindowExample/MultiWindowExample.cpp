@@ -8,6 +8,36 @@
 
 #include "NativeModules.h"
 
+// mica related
+#include <DispatcherQueue.h>
+#include <windows.ui.composition.interop.h>
+#include <winrt/Windows.UI.Composition.Desktop.h>
+#include <winrt/Microsoft.UI.Composition.SystemBackdrops.h>
+
+namespace {
+
+  inline auto CreateDispatcherQueueControllerForCurrentThread() {
+    namespace abi = ABI::Windows::System;
+
+    DispatcherQueueOptions options
+    {
+        sizeof(DispatcherQueueOptions),
+        DQTYPE_THREAD_CURRENT,
+        DQTAT_COM_NONE
+    };
+
+    winrt::Windows::System::DispatcherQueueController controller{ nullptr };
+    winrt::check_hresult(CreateDispatcherQueueController(options, reinterpret_cast<abi::IDispatcherQueueController**>(winrt::put_abi(controller))));
+    return controller;
+  }
+
+  inline auto PBNM = winrt::Microsoft::ReactNative::ReactPropertyBagHelper::GetNamespace(L"ReactNative.InstanceSettings");
+  inline auto CompositorProperty = winrt::Microsoft::ReactNative::ReactPropertyBagHelper::GetName(PBNM, L"Windows::UI::Composition::Compositor");
+
+} // namespace
+
+// end mica related
+
 // A PackageProvider containing any turbo modules you define within this app project
 struct CompReactPackageProvider
     : winrt::implements<CompReactPackageProvider, winrt::Microsoft::ReactNative::IReactPackageProvider> {
@@ -71,7 +101,33 @@ _Use_decl_annotations_ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, PSTR 
   // Get the AppWindow so we can configure its initial title and size
   auto appWindow{reactNativeWin32App.AppWindow()};
   appWindow.Title(L"MultiWindowExample");
-  appWindow.Resize({1000, 1000});
+  appWindow.Resize({ 1000, 600 });
+
+  // setting mica
+  auto queueController = CreateDispatcherQueueControllerForCurrentThread();
+  auto compositor = winrt::Windows::UI::Composition::Compositor();
+  auto hwnd = winrt::Microsoft::UI::GetWindowFromWindowId(appWindow.Id());
+  winrt::Windows::UI::Composition::Desktop::DesktopWindowTarget desktopTarget{ nullptr };
+  auto interop = compositor.as<ABI::Windows::UI::Composition::Desktop::ICompositorDesktopInterop>();
+  winrt::check_hresult(interop->CreateDesktopWindowTarget(
+    hwnd,
+    false,
+    reinterpret_cast<ABI::Windows::UI::Composition::Desktop::IDesktopWindowTarget**>(winrt::put_abi(desktopTarget))));
+
+  auto compositionTarget = desktopTarget.as<winrt::Windows::UI::Composition::CompositionTarget>();
+  auto container = compositor.CreateContainerVisual();
+  container.RelativeSizeAdjustment({ 1.0f, 1.0f });
+  compositionTarget.Root(container);
+
+  auto controller = winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController();
+  bool supported = controller.SetTarget(
+    winrt::Microsoft::UI::WindowId{ reinterpret_cast<uint64_t>(hwnd) },
+    compositionTarget);
+  // end setting mica
+
+  // save compositor
+  settings.Properties().Set(CompositorProperty, compositor);
+  // end save compositor
 
   // Get the ReactViewOptions so we can set the initial RN component to load
   auto viewOptions{reactNativeWin32App.ReactViewOptions()};
