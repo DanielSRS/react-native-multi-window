@@ -2,15 +2,18 @@
 
 #if RCT_NEW_ARCH_ENABLED
 #import <MultiWindowSpec/MultiWindowSpec.h>
-#elif TARGET_OS_OSX
+#else
 #import <React/RCTBridgeModule.h>
 #endif
+#import <React/RCTBridge.h>
 
 @interface MultiWindow : NSObject
 #if RCT_NEW_ARCH_ENABLED
 <NativeMultiWindowSpec>
-#elif TARGET_OS_OSX
+#else
 <RCTBridgeModule>
 #endif
+
+@property (nonatomic, weak) RCTBridge *bridge;
 
 @end

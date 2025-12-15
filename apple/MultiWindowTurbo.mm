@@ -1,7 +1,17 @@
 #import "MultiWindow.h"
+#import "MultiWindowEventEmitter.h"
 
 @implementation MultiWindow
+
+@synthesize bridge = _bridge;
 - (NSNumber *)multiply:(double)a b:(double)b {
+    NSDictionary *payload = @{
+        @"message": [NSString stringWithFormat:@"MultiWindow multiply called with %f and %f", a, b],
+        @"a": @(a),
+        @"b": @(b),
+    };
+
+    MWEmitLogEvent(self.bridge, payload);
     NSNumber *result = @(a * b);
 
     return result;
