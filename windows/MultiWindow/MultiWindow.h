@@ -26,7 +26,10 @@ struct MultiWindow
   REACT_SYNC_METHOD(multiply)
   double multiply(double a, double b) noexcept;
 
-private:
+ private:
+  void EmitLogEvent(winrt::Microsoft::ReactNative::JSValueObject payload) noexcept;
+  winrt::Microsoft::ReactNative::JSValueObject CreateMultiplyPayload(double a, double b) noexcept;
+
   React::ReactContext m_context;
 };
 
