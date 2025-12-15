@@ -1,21 +1,7 @@
-#import "MultiWindow.h"
+#import <TargetConditionals.h>
 
-@implementation MultiWindow
-- (NSNumber *)multiply:(double)a b:(double)b {
-    NSNumber *result = @(a * b);
-
-    return result;
-}
-
-- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
-    (const facebook::react::ObjCTurboModule::InitParams &)params
-{
-    return std::make_shared<facebook::react::NativeMultiWindowSpecJSI>(params);
-}
-
-+ (NSString *)moduleName
-{
-  return @"MultiWindow";
-}
-
-@end
+#if TARGET_OS_OSX && !RCT_NEW_ARCH_ENABLED
+#import "MultiWindowLegacy.mm"
+#else
+#import "MultiWindowTurbo.mm"
+#endif
