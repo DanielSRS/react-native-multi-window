@@ -11,6 +11,10 @@ import { name as appName } from '../app.json';
 
 const result = multiply(3, 7);
 
+DeviceEventEmitter.addListener('MultiWindow/logs', (event) => {
+  console.log('Received multiWindowEvent:', event);
+});
+
 const up = {
   c: 0,
   fn: () => {
@@ -35,15 +39,6 @@ export default function App() {
 
     return () => {
       up.subscribers.delete(uppp);
-    };
-  }, []);
-
-  useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('MultiWindow/logs', (event) => {
-      console.log('Received multiWindowEvent:', event);
-    });
-    return () => {
-      sub.remove();
     };
   }, []);
 
