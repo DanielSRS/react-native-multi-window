@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ReactContext.h"
 #include <DispatcherQueue.h>
 #include <winrt/Windows.System.h>
 #include <winrt/Microsoft.ReactNative.Composition.h>
