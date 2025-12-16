@@ -9,6 +9,8 @@
 #include "codegen/NativeMultiWindowSpec.g.h"
 
 #include "NativeModules.h"
+#include "ReactWindow.h"
+#include "map"
 
 namespace winrt::MultiWindow
 {
@@ -38,6 +40,7 @@ struct MultiWindow
   JSValueObject CreateMultiplyPayload(double a, double b) noexcept;
 
   React::ReactContext m_context;
+  std::map<uintptr_t, ReactWindow> m_openWindows;
 };
 
 } // namespace winrt::MultiWindow

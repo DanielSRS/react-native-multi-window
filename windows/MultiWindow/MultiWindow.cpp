@@ -23,6 +23,7 @@ void MultiWindow::openNewWindow(WindowOptions&& options, ReactPromiseDouble&& re
     {"function", "openNewWindow"},
     {"title", options.title},
     {"componentName", options.componentName},
+    {"number of open windows", m_openWindows.size()}
   });
   result.Resolve(123.0);
 }
