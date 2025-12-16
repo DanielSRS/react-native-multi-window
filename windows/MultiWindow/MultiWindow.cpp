@@ -18,6 +18,33 @@ double MultiWindow::multiply(double a, double b) noexcept {
   return a * b;
 }
 
+void MultiWindow::RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const& window) noexcept {
+  const auto hwnd = winrt::Microsoft::UI::GetWindowFromWindowId(window.Id());
+  const auto id = reinterpret_cast<uintptr_t>(hwnd);
+  auto it = m_openWindows.find(id);
+  if (it != m_openWindows.end()) {
+    auto unloadAction = it->second.viewHost.UnloadViewInstance();
+    if(it->second.type == WindowType::MICA && it->second.micaWindowData.has_value()) {
+      auto micaData = it->second.micaWindowData.value();
+      micaData.compositionTarget.Close();
+      micaData.controller.Close();
+      micaData.rootVisual.Close();
+
+      micaData.compositionTarget = nullptr;
+      micaData.controller = nullptr;
+      micaData.rootVisual = nullptr;
+    }
+    m_openWindows.erase(id);
+    EmitLogEvent(JSValueObject{
+      {"function", "RemoveWindowCompleted"},
+      {"remaining open windows", m_openWindows.size()},
+      {"window id", id }
+    });
+    unloadAction.Completed([id](auto&&, auto&&) {
+     });
+  }
+}
+
 void MultiWindow::openNewWindow(WindowOptions&& options, ReactPromiseDouble&& result) noexcept {
   EmitLogEvent(JSValueObject{
     {"function", "openNewWindow"},
@@ -27,10 +54,14 @@ void MultiWindow::openNewWindow(WindowOptions&& options, ReactPromiseDouble&& re
   });
   auto dispatcher = m_context.UIDispatcher();
 
-  auto fulfill = [context = m_context, &openWindows = m_openWindows](
+  auto fulfill = [context = m_context, &openWindows = m_openWindows, this](
     WindowOptions opts,
     ReactPromiseDouble&& innerPromise) mutable {
-      auto result = OpenReactWindow(context, opts);
+      auto result = OpenReactWindow(
+        context,
+        opts,
+        [this](winrt::Microsoft::UI::Windowing::AppWindow const& window) { RemoveWindow(window); }
+      );
       if (std::holds_alternative<ReactWindow>(result)) {
         auto r = std::get<ReactWindow>(result);
         const auto hwnd = winrt::Microsoft::UI::GetWindowFromWindowId(r.window.Id());

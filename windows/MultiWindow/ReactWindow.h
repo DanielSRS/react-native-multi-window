@@ -73,10 +73,12 @@ namespace winrt::MultiWindow {
   }
 
   using EitherReactWindowCreationErrorOrReactWindow = std::variant<ReactWindowCreationError, ReactWindow>;
+  using RemoveCallback = std::function<void(winrt::Microsoft::UI::Windowing::AppWindow const&)>;
 
   inline EitherReactWindowCreationErrorOrReactWindow OpenReactWindow(
     winrt::Microsoft::ReactNative::ReactContext const& context,
-    WindowOptions const& options
+    WindowOptions const& options,
+    RemoveCallback onWindowClosed = nullptr
   ) {
     auto appWindow = AppWindow::Create();
     if (!appWindow) {
@@ -124,6 +126,13 @@ namespace winrt::MultiWindow {
     compositionHost.Initialize(reinterpret_cast<uint64_t>(hwnd));
 
     appWindow.Title(winrt::to_hstring(options.title));
+
+    auto destroyingToken = appWindow.Destroying([onRemove = onWindowClosed](
+      winrt::Microsoft::UI::Windowing::AppWindow const& sender, winrt::Windows::Foundation::IInspectable const&) {
+        if (onRemove) {
+          onRemove(sender);
+        }
+      });
 
     ReactWindow result;
     result.type = WindowType::DEFAULT;

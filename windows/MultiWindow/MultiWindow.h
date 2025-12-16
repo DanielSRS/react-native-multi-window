@@ -37,6 +37,7 @@ struct MultiWindow
 
  private:
   void EmitLogEvent(JSValueObject payload) noexcept;
+  void RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const& window) noexcept;
   JSValueObject CreateMultiplyPayload(double a, double b) noexcept;
 
   React::ReactContext m_context;
