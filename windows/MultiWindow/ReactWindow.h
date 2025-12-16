@@ -72,6 +72,14 @@ namespace winrt::MultiWindow {
     }
   }
 
+  inline void UpdateCompositionHostSize(CompositionHwndHost compositionHost) noexcept {
+    if (!compositionHost) {
+      return;
+    }
+
+    compositionHost.TranslateMessage(WM_WINDOWPOSCHANGED, 0, 0);
+  }
+
   using EitherReactWindowCreationErrorOrReactWindow = std::variant<ReactWindowCreationError, ReactWindow>;
   using RemoveCallback = std::function<void(winrt::Microsoft::UI::Windowing::AppWindow const&)>;
 
@@ -127,6 +135,14 @@ namespace winrt::MultiWindow {
 
     appWindow.Title(winrt::to_hstring(options.title));
 
+    auto changedToken = appWindow.Changed([cmp = compositionHost](
+      AppWindow const& sender,
+      winrt::Microsoft::UI::Windowing::AppWindowChangedEventArgs const& args) {
+        if (args.DidSizeChange() || args.DidPresenterChange()) {
+          UpdateCompositionHostSize(cmp);
+        }
+      });
+
     auto destroyingToken = appWindow.Destroying([onRemove = onWindowClosed](
       winrt::Microsoft::UI::Windowing::AppWindow const& sender, winrt::Windows::Foundation::IInspectable const&) {
         if (onRemove) {
@@ -139,6 +155,8 @@ namespace winrt::MultiWindow {
     result.window = appWindow;
     result.compositionHost = compositionHost;
     result.viewHost = viewHost;
+    result.changedToken = changedToken;
+    result.destroyingToken = destroyingToken;
 
     return result;
   }
