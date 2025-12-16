@@ -5,8 +5,35 @@ import {
   type TurboModule,
 } from 'react-native';
 
+/**
+ * Options for creating a new window.
+ */
+export interface WindowOptions {
+  /**
+   * The title of the new window.
+   * Only shown an used on platforms that support window titles.s
+   */
+  title: string;
+  /**
+   * The name of the React component to render in the new window.
+   * This must match a registered component name in the AppRegistry.
+   * e.g., AppRegistry.registerComponent('MyComponent', () => MyComponent);
+   */
+  componentName: string;
+}
+
+/**
+ * Result of creating a new window.
+ * Resolves to the window ID of the newly created window if successful.
+ * Otherwise, it returns an error code.
+ *
+ * It never throws exceptions; errors are indicated via the returned value.
+ */
+type WindowCreationResult = Promise<number>;
+
 export interface Spec extends TurboModule {
   multiply(a: number, b: number): number;
+  openNewWindow(options: WindowOptions): WindowCreationResult;
 }
 
 /**

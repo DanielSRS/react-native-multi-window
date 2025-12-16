@@ -19,12 +19,17 @@ REACT_MODULE(MultiWindow)
 struct MultiWindow
 {
   using ModuleSpec = MultiWindowCodegen::MultiWindowSpec;
+  using WindowOptions = MultiWindowCodegen::MultiWindowSpec_WindowOptions;
+  using ReactPromiseDouble = ::React::ReactPromise<double>;
 
   REACT_INIT(Initialize)
   void Initialize(React::ReactContext const &reactContext) noexcept;
 
   REACT_SYNC_METHOD(multiply)
   double multiply(double a, double b) noexcept;
+
+  REACT_METHOD(openNewWindow)
+  void openNewWindow(WindowOptions&& options, ReactPromiseDouble&& result) noexcept;
 
  private:
   void EmitLogEvent(winrt::Microsoft::ReactNative::JSValueObject payload) noexcept;
