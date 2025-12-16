@@ -19,7 +19,7 @@ double MultiWindow::multiply(double a, double b) noexcept {
 }
 
 void MultiWindow::openNewWindow(WindowOptions&& options, ReactPromiseDouble&& result) noexcept {
-  EmitLogEvent(winrt::Microsoft::ReactNative::JSValueObject{
+  EmitLogEvent(JSValueObject{
     {"function", "openNewWindow"},
     {"title", options.title},
     {"componentName", options.componentName},
@@ -27,18 +27,18 @@ void MultiWindow::openNewWindow(WindowOptions&& options, ReactPromiseDouble&& re
   result.Resolve(123.0);
 }
 
-winrt::Microsoft::ReactNative::JSValueObject MultiWindow::CreateMultiplyPayload(double a, double b) noexcept {
+JSValueObject MultiWindow::CreateMultiplyPayload(double a, double b) noexcept {
   std::ostringstream messageStream;
   messageStream << "MultiWindow multiply called with " << a << " and " << b;
 
-  return winrt::Microsoft::ReactNative::JSValueObject{
+  return JSValueObject{
       {"message", messageStream.str()},
       {"a", a},
       {"b", b},
   };
 }
 
-void MultiWindow::EmitLogEvent(winrt::Microsoft::ReactNative::JSValueObject payload) noexcept {
+void MultiWindow::EmitLogEvent(JSValueObject payload) noexcept {
   if (!m_context) {
     return;
   }

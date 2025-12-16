@@ -13,6 +13,8 @@
 namespace winrt::MultiWindow
 {
 
+  using JSValueObject = winrt::Microsoft::ReactNative::JSValueObject;
+
 // See https://microsoft.github.io/react-native-windows/docs/native-platform for help writing native modules
 
 REACT_MODULE(MultiWindow)
@@ -32,8 +34,8 @@ struct MultiWindow
   void openNewWindow(WindowOptions&& options, ReactPromiseDouble&& result) noexcept;
 
  private:
-  void EmitLogEvent(winrt::Microsoft::ReactNative::JSValueObject payload) noexcept;
-  winrt::Microsoft::ReactNative::JSValueObject CreateMultiplyPayload(double a, double b) noexcept;
+  void EmitLogEvent(JSValueObject payload) noexcept;
+  JSValueObject CreateMultiplyPayload(double a, double b) noexcept;
 
   React::ReactContext m_context;
 };
