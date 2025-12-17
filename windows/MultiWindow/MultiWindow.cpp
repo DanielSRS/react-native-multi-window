@@ -1,8 +1,8 @@
 #include "pch.h"
 
 #include <sstream>
-
 #include "MultiWindow.h"
+#include "Utilities.h"
 
 namespace winrt::MultiWindow
 {
@@ -60,7 +60,8 @@ void MultiWindow::openNewWindow(WindowOptions&& options, ReactPromiseDouble&& re
       auto result = OpenReactWindow(
         context,
         opts,
-        [this](winrt::Microsoft::UI::Windowing::AppWindow const& window) { RemoveWindow(window); }
+        [this](winrt::Microsoft::UI::Windowing::AppWindow const& window) { RemoveWindow(window); },
+        Utilities::EnsureThreadLocalCompositor
       );
       if (std::holds_alternative<ReactWindow>(result)) {
         auto r = std::get<ReactWindow>(result);

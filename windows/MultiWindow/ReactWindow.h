@@ -4,15 +4,13 @@
 #include <optional>
 #include <winrt/Microsoft.UI.Interop.h>
 #include <winrt/Microsoft.UI.Windowing.h>
-#include <winrt/Windows.UI.Composition.h>
-#include <winrt/Microsoft.ReactNative.Composition.h>
 #include <winrt/Microsoft.UI.Composition.SystemBackdrops.h>
+#include "MicaWindow.h"
 
 #if __has_include("codegen/NativeMultiWindowDataTypes.g.h")
 #include "codegen/NativeMultiWindowDataTypes.g.h"
 #endif
 
-// ReactWindow
 namespace winrt::MultiWindow {
 
   using AppWindow = winrt::Microsoft::UI::Windowing::AppWindow;
@@ -26,6 +24,7 @@ namespace winrt::MultiWindow {
   using winrt::Microsoft::ReactNative::ReactNativeHost;
   using winrt::Microsoft::ReactNative::ReactViewOptions;
   using winrt::Microsoft::ReactNative::ReactCoreInjection;
+  using winrt::Windows::UI::Composition::Compositor;
 
   enum class WindowType {
     DEFAULT = 0,
@@ -38,18 +37,14 @@ namespace winrt::MultiWindow {
     NO_WINDOW_HANDLE = -85674,
     NO_REACT_NATIVE_HOST = -91234,
     NO_VIEW_HOST = -23456,
+    NO_COMPOSITOR = -34567,
+    NO_CONTAINER_VISUAL = -45678,
+    UNKNOWN_MICA_ERROR = -56789,
   };
 
   /*struct DefaultWindowData {
     
   };*/
-
-  struct MicaWindowData {
-    Visual rootVisual{ nullptr };
-    CompositionTarget compositionTarget{ nullptr };
-    MicaController controller{ nullptr };
-    bool isSupported{ false };
-  };
 
   struct ReactWindow {
     WindowType type{ WindowType::DEFAULT };
@@ -58,7 +53,7 @@ namespace winrt::MultiWindow {
     EventToken destroyingToken{};
     CompositionHwndHost compositionHost{ nullptr };
     IReactViewHost viewHost{ nullptr };
-    std::optional<MicaWindowData> micaWindowData{};
+    std::optional<MicaWindow::MicaWindowData> micaWindowData{};
   };
 
   inline WindowType ParseWindowType(double value) noexcept {
@@ -82,11 +77,13 @@ namespace winrt::MultiWindow {
 
   using EitherReactWindowCreationErrorOrReactWindow = std::variant<ReactWindowCreationError, ReactWindow>;
   using RemoveCallback = std::function<void(winrt::Microsoft::UI::Windowing::AppWindow const&)>;
+  using EnsureCompositor = std::function<Compositor(winrt::Microsoft::ReactNative::ReactContext const&)>;
 
   inline EitherReactWindowCreationErrorOrReactWindow OpenReactWindow(
     winrt::Microsoft::ReactNative::ReactContext const& context,
     WindowOptions const& options,
-    RemoveCallback onWindowClosed = nullptr
+    RemoveCallback onWindowClosed = nullptr,
+    EnsureCompositor ensureThreadLocalCompositor = nullptr
   ) {
     auto appWindow = AppWindow::Create();
     if (!appWindow) {
@@ -135,6 +132,20 @@ namespace winrt::MultiWindow {
 
     appWindow.Title(winrt::to_hstring(options.title));
 
+    ReactWindow result;
+     result.type = ParseWindowType(options.windows_WindowType);
+    if (result.type == WindowType::MICA) {
+      auto compositor = ensureThreadLocalCompositor(context);
+      auto micaResult = MicaWindow::applyMica(compositor, hwnd);
+
+      if (!micaResult.compositionTarget || !micaResult.controller) {
+        appWindow.Destroy();
+        return ReactWindowCreationError::UNKNOWN_MICA_ERROR;
+      }
+
+      result.micaWindowData = micaResult;
+    }
+
     auto changedToken = appWindow.Changed([cmp = compositionHost](
       AppWindow const& sender,
       winrt::Microsoft::UI::Windowing::AppWindowChangedEventArgs const& args) {
@@ -150,8 +161,6 @@ namespace winrt::MultiWindow {
         }
       });
 
-    ReactWindow result;
-    result.type = WindowType::DEFAULT;
     result.window = appWindow;
     result.compositionHost = compositionHost;
     result.viewHost = viewHost;
