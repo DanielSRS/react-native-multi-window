@@ -8,10 +8,10 @@ import {
 /**
  * Types of windows that can be created. this is specific to Windows platform.
  * - 0: Standard window
- * - 1: Acylic window
+ * - 1: Acrylic window
  * - 2: Mica window
  */
-type WindowType = 0 | 1 | 2;
+export type WindowType = 0 | 1 | 2;
 
 /**
  * Options for creating a new window.
@@ -31,7 +31,7 @@ export interface WindowOptions {
   /**
    * The type of window to create (specific to Windows platform).
    * - 0: Standard window
-   * - 1: Acylic window
+   * - 1: Acrylic window
    * - 2: Mica window
    * @default 0
    * @platform windows

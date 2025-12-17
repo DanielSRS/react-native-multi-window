@@ -5,6 +5,7 @@
 #include <winrt/Microsoft.UI.Interop.h>
 #include <winrt/Microsoft.UI.Windowing.h>
 #include <winrt/Microsoft.UI.Composition.SystemBackdrops.h>
+#include "AcrylicWindow.h"
 #include "MicaWindow.h"
 
 #if __has_include("codegen/NativeMultiWindowDataTypes.g.h")
@@ -28,7 +29,7 @@ namespace winrt::MultiWindow {
 
   enum class WindowType {
     DEFAULT = 0,
-    //ACRYLIC = 1,
+    ACRYLIC = 1,
     MICA = 2,
   };
 
@@ -40,6 +41,7 @@ namespace winrt::MultiWindow {
     NO_COMPOSITOR = -34567,
     NO_CONTAINER_VISUAL = -45678,
     UNKNOWN_MICA_ERROR = -56789,
+    UNKNOWN_ACRYLIC_ERROR = -67890,
   };
 
   /*struct DefaultWindowData {
@@ -54,12 +56,14 @@ namespace winrt::MultiWindow {
     CompositionHwndHost compositionHost{ nullptr };
     IReactViewHost viewHost{ nullptr };
     std::optional<MicaWindow::MicaWindowData> micaWindowData{};
+    std::optional<AcrylicWindow::AcrylicWindowData> acrylicWindowData{};
   };
 
   inline WindowType ParseWindowType(double value) noexcept {
     const auto type = static_cast<int>(value);
     switch (type) {
     case 1:
+      return WindowType::ACRYLIC;
     case 2:
       return WindowType::MICA;
     default:
@@ -133,17 +137,42 @@ namespace winrt::MultiWindow {
     appWindow.Title(winrt::to_hstring(options.title));
 
     ReactWindow result;
-     result.type = ParseWindowType(options.windows_WindowType);
-    if (result.type == WindowType::MICA) {
-      auto compositor = ensureThreadLocalCompositor(context);
-      auto micaResult = MicaWindow::applyMica(compositor, hwnd);
+    result.type = ParseWindowType(options.windows_WindowType);
 
-      if (!micaResult.compositionTarget || !micaResult.controller) {
+    Compositor compositor{ nullptr };
+    if (result.type != WindowType::DEFAULT) {
+      if (!ensureThreadLocalCompositor) {
+        appWindow.Destroy();
+        return ReactWindowCreationError::NO_COMPOSITOR;
+      }
+      compositor = ensureThreadLocalCompositor(context);
+      if (!compositor) {
+        appWindow.Destroy();
+        return ReactWindowCreationError::NO_COMPOSITOR;
+      }
+    }
+
+    switch (result.type) {
+    case WindowType::MICA: {
+      auto micaResult = MicaWindow::applyMica(compositor, hwnd);
+      if (!micaResult.compositionTarget || !micaResult.controller || !micaResult.isSupported) {
         appWindow.Destroy();
         return ReactWindowCreationError::UNKNOWN_MICA_ERROR;
       }
-
       result.micaWindowData = micaResult;
+      break;
+    }
+    case WindowType::ACRYLIC: {
+      auto acrylicResult = AcrylicWindow::applyAcrylic(compositor, hwnd);
+      if (!acrylicResult.compositionTarget || !acrylicResult.controller || !acrylicResult.isSupported) {
+        appWindow.Destroy();
+        return ReactWindowCreationError::UNKNOWN_ACRYLIC_ERROR;
+      }
+      result.acrylicWindowData = acrylicResult;
+      break;
+    }
+    default:
+      break;
     }
 
     auto changedToken = appWindow.Changed([cmp = compositionHost](

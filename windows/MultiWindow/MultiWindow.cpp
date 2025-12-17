@@ -24,8 +24,8 @@ void MultiWindow::RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const&
   auto it = m_openWindows.find(id);
   if (it != m_openWindows.end()) {
     auto unloadAction = it->second.viewHost.UnloadViewInstance();
-    if(it->second.type == WindowType::MICA && it->second.micaWindowData.has_value()) {
-      auto micaData = it->second.micaWindowData.value();
+    if (it->second.type == WindowType::MICA && it->second.micaWindowData.has_value()) {
+      auto& micaData = it->second.micaWindowData.value();
       micaData.compositionTarget.Close();
       micaData.controller.Close();
       micaData.rootVisual.Close();
@@ -33,6 +33,26 @@ void MultiWindow::RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const&
       micaData.compositionTarget = nullptr;
       micaData.controller = nullptr;
       micaData.rootVisual = nullptr;
+      it->second.micaWindowData.reset();
+    }
+    else if (it->second.type == WindowType::ACRYLIC && it->second.acrylicWindowData.has_value()) {
+      auto& acrylicData = it->second.acrylicWindowData.value();
+      if (acrylicData.configuration) {
+        acrylicData.configuration = nullptr;
+      }
+      if (acrylicData.compositionTarget) {
+        acrylicData.compositionTarget.Close();
+        acrylicData.compositionTarget = nullptr;
+      }
+      if (acrylicData.controller) {
+        acrylicData.controller.Close();
+        acrylicData.controller = nullptr;
+      }
+      if (acrylicData.rootVisual) {
+        acrylicData.rootVisual.Close();
+        acrylicData.rootVisual = nullptr;
+      }
+      it->second.acrylicWindowData.reset();
     }
     m_openWindows.erase(id);
     EmitLogEvent(JSValueObject{

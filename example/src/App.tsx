@@ -74,6 +74,25 @@ export default function App() {
         onPress={async () => {
           try {
             const responseCode = await openNewWindow({
+              title: 'Acrylic vibes',
+              componentName: appName,
+              windows_WindowType: 1,
+            });
+            console.log(
+              'Response code from openNewWindow (acrylic):',
+              responseCode
+            );
+          } catch (error) {
+            console.error('Failed to open acrylic window:', error);
+          }
+        }}
+        title="Open Window with acrylic effect"
+        color={'#4bc0f8'}
+      />
+      <Button
+        onPress={async () => {
+          try {
+            const responseCode = await openNewWindow({
               title: 'Agora vai with mica?',
               componentName: appName,
               windows_WindowType: 2,
