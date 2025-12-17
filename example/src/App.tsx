@@ -111,7 +111,29 @@ export default function App() {
           console.log('Multiply:', multiply(6, 7));
         }}
       />
+      <Button
+        title="Second"
+        onPress={() => {
+          openNewWindow({
+            title: 'Second Window',
+            componentName: 'Second',
+            windows_WindowType: 0,
+          });
+        }}
+      />
     </View>
+  );
+}
+
+export function Second() {
+  const backgroundColor = useMemo(() => randomColor(), []);
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor,
+      }}
+    />
   );
 }
 
