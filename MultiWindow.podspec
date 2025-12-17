@@ -13,11 +13,21 @@ Pod::Spec.new do |s|
   s.platforms    = { :ios => min_ios_version_supported, :osx => "11.0" }
   s.source       = { :git => "https://github.com/DanielSRS/react-native-multi-window.git", :tag => "#{s.version}" }
 
-  s.source_files = "apple/**/*.{h,m,mm,cpp}"
+  s.source_files = "apple/**/*.{h,m,mm,cpp,swift}"
   # Needed to fix issues with conflicting symbols between legacy and turbo implementations.
-  s.exclude_files = [
+  s.ios.exclude_files = [
+    "apple/MultiWindowTurboMac.mm",
+    "apple/MultiWindowMacOSWindowManager.swift",
+    "apple/MWMacWindowManager.h",
+    "apple/MultiWindowTurbo.mm",
+    "apple/MultiWindowTurboIOS.mm",
+    "apple/MultiWindowLegacy.mm"
+  ]
+  s.osx.exclude_files = [
     "apple/MultiWindowLegacy.mm",
-    "apple/MultiWindowTurbo.mm"
+    "apple/MultiWindowTurbo.mm",
+    "apple/MultiWindowTurboIOS.mm",
+    "apple/MultiWindowTurboMac.mm",
   ]
   s.private_header_files = "apple/**/*.h"
 

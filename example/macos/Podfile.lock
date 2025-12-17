@@ -1804,7 +1804,7 @@ SPEC CHECKSUMS:
   FBLazyVector: 9caf418dd9c1d8df5e5fe27371816fffa785d7d1
   fmt: f6af2d677a106e3e44c9536a4c0c7f03ab53c854
   glog: ea1690290b2b90f923ffcce07436498f09b428ee
-  MultiWindow: 2221fa5ef59853e3ba7cbd3ef84d7671cf2173da
+  MultiWindow: 84a911915b863cddd7c44e88012dd890dc18117b
   RCT-Folly: abec2d7f4af402b4957c44e86ceff8725b23c1b4
   RCTDeprecation: 0ada4fb1e5c5637bff940dc40b94e2d3bf96b0ab
   RCTRequired: 43bd3d086e1850ab6dcb667c5d745a8dd13c860d

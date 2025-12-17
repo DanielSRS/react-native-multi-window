@@ -1,26 +1,31 @@
 #import <TargetConditionals.h>
 
-#if TARGET_OS_OSX && !RCT_NEW_ARCH_ENABLED
-
+#if TARGET_OS_OSX && RCT_NEW_ARCH_ENABLED
 #import "MultiWindow.h"
-#import <React/RCTBridgeModule.h>
-#import "MultiWindowEventEmitter.h"
 #import "MWMacWindowManager.h"
+#import "MultiWindowEventEmitter.h"
+#import <React/RCTBridgeModule.h>
+
+static inline NSNumber *MWMultiply(double a, double b) {
+  return @(a * b);
+}
 
 @interface MultiWindow ()
 @property (nonatomic, strong) MWMacWindowManager *macWindowManager;
 @end
 
-static inline NSNumber *MWMultiply(double a, double b) {
-  return @(a * b);
+static inline NSDictionary *MWDictionaryFromOptions(JS::NativeMultiWindow::WindowOptions &options) {
+  return @{
+    @"title": options.title() ?: @"",
+    @"componentName": options.componentName() ?: @"",
+    @"windows_WindowType": @(options.windows_WindowType()),
+  };
 }
 
 @implementation MultiWindow
 
 @synthesize bridge = _bridge;
 @synthesize macWindowManager = _macWindowManager;
-
-RCT_EXPORT_MODULE(MultiWindow)
 
 - (void)setBridge:(RCTBridge *)bridge
 {
@@ -36,7 +41,7 @@ RCT_EXPORT_MODULE(MultiWindow)
   return _macWindowManager;
 }
 
-RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(multiply:(double)a b:(double)b)
+- (NSNumber *)multiply:(double)a b:(double)b
 {
   NSDictionary *payload = @{
     @"message": [NSString stringWithFormat:@"MultiWindow multiply called with %f and %f", a, b],
@@ -48,9 +53,15 @@ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(multiply:(double)a b:(double)b)
   return MWMultiply(a, b);
 }
 
-RCT_EXPORT_METHOD(openNewWindow:(NSDictionary *)options
-                  resolve:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject)
+- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
+    (const facebook::react::ObjCTurboModule::InitParams &)params
+{
+  return std::make_shared<facebook::react::NativeMultiWindowSpecJSI>(params);
+}
+
+- (void)openNewWindow:(JS::NativeMultiWindow::WindowOptions &)options
+             resolve:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject
 {
   (void)reject;
 
@@ -58,10 +69,15 @@ RCT_EXPORT_METHOD(openNewWindow:(NSDictionary *)options
     return;
   }
 
-  [[self macWindowManager] openNewWindowWithOptions:options ?: @{}
+  [[self macWindowManager] openNewWindowWithOptions:MWDictionaryFromOptions(options)
                                           completion:^(NSNumber *result) {
                                             resolve(result);
                                           }];
+}
+
++ (NSString *)moduleName
+{
+  return @"MultiWindow";
 }
 
 @end
