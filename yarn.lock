@@ -11243,6 +11243,7 @@ __metadata:
     react: 19.0.0
     react-native: 0.79.0
     react-native-builder-bob: ^0.40.13
+    react-native-macos: ^0.79.0-0
     react-native-windows: ^0.79.0
     release-it: ^19.0.4
     turbo: ^2.5.6
@@ -11250,6 +11251,7 @@ __metadata:
   peerDependencies:
     react: "*"
     react-native: "*"
+    react-native-macos: "*"
     react-native-windows: "*"
   languageName: unknown
   linkType: soft
