@@ -60,7 +60,7 @@ export default function App() {
             const responseCode = await openNewWindow({
               title: 'Agora vai',
               componentName: appName,
-              // windows_WindowType: 0,
+              windows_WindowType: 0,
             });
             console.log('Response code from openNewWindow:', responseCode);
           } catch (error) {
@@ -76,7 +76,7 @@ export default function App() {
             const responseCode = await openNewWindow({
               title: 'Agora vai with mica?',
               componentName: appName,
-              // windows_WindowType: 2,
+              windows_WindowType: 2,
             });
             console.log('Response code from openNewWindow:', responseCode);
           } catch (error) {

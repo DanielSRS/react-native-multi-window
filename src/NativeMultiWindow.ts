@@ -6,12 +6,20 @@ import {
 } from 'react-native';
 
 /**
+ * Types of windows that can be created. this is specific to Windows platform.
+ * - 0: Standard window
+ * - 1: Acylic window
+ * - 2: Mica window
+ */
+type WindowType = 0 | 1 | 2;
+
+/**
  * Options for creating a new window.
  */
 export interface WindowOptions {
   /**
    * The title of the new window.
-   * Only shown an used on platforms that support window titles.s
+   * Only shown an used on platforms that support window titles.
    */
   title: string;
   /**
@@ -20,6 +28,15 @@ export interface WindowOptions {
    * e.g., AppRegistry.registerComponent('MyComponent', () => MyComponent);
    */
   componentName: string;
+  /**
+   * The type of window to create (specific to Windows platform).
+   * - 0: Standard window
+   * - 1: Acylic window
+   * - 2: Mica window
+   * @default 0
+   * @platform windows
+   */
+  windows_WindowType: WindowType;
 }
 
 /**
