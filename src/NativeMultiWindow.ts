@@ -49,7 +49,6 @@ export interface WindowOptions {
 type WindowCreationResult = Promise<number>;
 
 export interface Spec extends TurboModule {
-  multiply(a: number, b: number): number;
   openNewWindow(options: WindowOptions): WindowCreationResult;
 }
 

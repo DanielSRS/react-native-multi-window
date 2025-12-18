@@ -29,9 +29,6 @@ struct MultiWindow
   REACT_INIT(Initialize)
   void Initialize(React::ReactContext const &reactContext) noexcept;
 
-  REACT_SYNC_METHOD(multiply)
-  double multiply(double a, double b) noexcept;
-
   REACT_METHOD(openNewWindow)
   void openNewWindow(WindowOptions&& options, ReactPromiseDouble&& result) noexcept;
 

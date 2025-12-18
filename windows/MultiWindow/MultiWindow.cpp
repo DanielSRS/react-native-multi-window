@@ -13,11 +13,6 @@ void MultiWindow::Initialize(React::ReactContext const &reactContext) noexcept {
   m_context = reactContext;
 }
 
-double MultiWindow::multiply(double a, double b) noexcept {
-  EmitLogEvent(CreateMultiplyPayload(a, b));
-  return a * b;
-}
-
 void MultiWindow::RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const& window) noexcept {
   const auto hwnd = winrt::Microsoft::UI::GetWindowFromWindowId(window.Id());
   const auto id = reinterpret_cast<uintptr_t>(hwnd);

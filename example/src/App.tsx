@@ -5,11 +5,9 @@ import {
   Button,
   DeviceEventEmitter,
 } from 'react-native';
-import { multiply, openNewWindow } from '../../src/index';
+import { openNewWindow } from '../../src/index';
 import { useEffect, useMemo, useState } from 'react';
 import { name as appName } from '../app.json';
-
-const result = multiply(3, 7);
 
 DeviceEventEmitter.addListener('MultiWindow/logs', (event) => {
   console.log('Received multiWindowEvent:', event);
@@ -46,7 +44,6 @@ export default function App() {
     <View style={[styles.container]}>
       <View style={[{ backgroundColor, height: 100, width: 100 }]} />
       <Text key={v}>count: {up.c}</Text>
-      <Text>Resultt: {result}</Text>
       <Button
         onPress={async () => {
           up.fn();
@@ -104,12 +101,6 @@ export default function App() {
         }}
         title="Open New Window with mica effect"
         color={'#fcfc1eff'}
-      />
-      <Button
-        title="multiply"
-        onPress={() => {
-          console.log('Multiply:', multiply(6, 7));
-        }}
       />
       <Button
         title="Second"
