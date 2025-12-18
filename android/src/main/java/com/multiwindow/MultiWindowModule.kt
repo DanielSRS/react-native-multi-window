@@ -23,21 +23,6 @@ class MultiWindowModule(
     return NAME
   }
 
-  // Example method
-  // See https://reactnative.dev/docs/native-modules-android
-  override fun multiply(a: Double, b: Double): Double {
-    val payload = createMultiplyPayload(a, b)
-    emitLogEvent(reactContext, payload)
-    return a * b
-  }
-
-  private fun createMultiplyPayload(a: Double, b: Double): WritableMap =
-    Arguments.createMap().apply {
-      putString("message", "MultiWindow multiply called with $a and $b")
-      putDouble("a", a)
-      putDouble("b", b)
-    }
-
   private fun emitLogEvent(
     context: ReactApplicationContext,
     payload: WritableMap,
