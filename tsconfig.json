@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "testlib": ["./src/index"]
+      "react-native-multi-window": ["./src/index"]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,

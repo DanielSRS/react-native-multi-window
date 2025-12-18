@@ -1,8 +1,19 @@
-import { Text, View, StyleSheet, Button } from 'react-native';
+import {
+  Text,
+  View,
+  StyleSheet,
+  Button,
+  DeviceEventEmitter,
+} from 'react-native';
 import { multiply, openNewWindow } from '../../src/index';
 import { useEffect, useMemo, useState } from 'react';
+import { name as appName } from '../app.json';
 
 const result = multiply(3, 7);
+
+DeviceEventEmitter.addListener('MultiWindow/logs', (event) => {
+  console.log('Received multiWindowEvent:', event);
+});
 
 const up = {
   c: 0,
@@ -30,9 +41,10 @@ export default function App() {
       up.subscribers.delete(uppp);
     };
   }, []);
+
   return (
     <View style={[styles.container]}>
-      <View style={[{ backgroundColor, height: 100, width: 100 }]}></View>
+      <View style={[{ backgroundColor, height: 100, width: 100 }]} />
       <Text key={v}>count: {up.c}</Text>
       <Text>Resultt: {result}</Text>
       <Button
@@ -47,6 +59,7 @@ export default function App() {
           try {
             const responseCode = await openNewWindow({
               title: 'Agora vai',
+              componentName: appName,
               windows_WindowType: 0,
             });
             console.log('Response code from openNewWindow:', responseCode);
@@ -61,7 +74,27 @@ export default function App() {
         onPress={async () => {
           try {
             const responseCode = await openNewWindow({
+              title: 'Acrylic vibes',
+              componentName: appName,
+              windows_WindowType: 1,
+            });
+            console.log(
+              'Response code from openNewWindow (acrylic):',
+              responseCode
+            );
+          } catch (error) {
+            console.error('Failed to open acrylic window:', error);
+          }
+        }}
+        title="Open Window with acrylic effect"
+        color={'#4bc0f8'}
+      />
+      <Button
+        onPress={async () => {
+          try {
+            const responseCode = await openNewWindow({
               title: 'Agora vai with mica?',
+              componentName: appName,
               windows_WindowType: 2,
             });
             console.log('Response code from openNewWindow:', responseCode);
@@ -72,7 +105,35 @@ export default function App() {
         title="Open New Window with mica effect"
         color={'#fcfc1eff'}
       />
+      <Button
+        title="multiply"
+        onPress={() => {
+          console.log('Multiply:', multiply(6, 7));
+        }}
+      />
+      <Button
+        title="Second"
+        onPress={() => {
+          openNewWindow({
+            title: 'Second Window',
+            componentName: 'Second',
+            windows_WindowType: 0,
+          });
+        }}
+      />
     </View>
+  );
+}
+
+export function Second() {
+  const backgroundColor = useMemo(() => randomColor(), []);
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor,
+      }}
+    />
   );
 }
 

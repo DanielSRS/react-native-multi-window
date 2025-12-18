@@ -1,7 +1,7 @@
 {
-  "name": "testlib",
+  "name": "react-native-multi-window",
   "version": "0.0.1",
-  "description": "A React Native module to manage multiple windows in a React Native application.",
+  "description": "Create and manage multiple windows in a React Native app",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -33,7 +33,7 @@
     "windows"
   ],
   "scripts": {
-    "example": "yarn workspace testlib-example",
+    "example": "yarn workspace react-native-multi-window-example",
     "test": "jest",
     "typecheck": "tsc",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
@@ -81,6 +81,7 @@
     "react": "19.0.0",
     "react-native": "0.79.0",
     "react-native-builder-bob": "^0.40.13",
+    "react-native-macos": "^0.79.0-0",
     "react-native-windows": "^0.79.0",
     "release-it": "^19.0.4",
     "turbo": "^2.5.6",
@@ -89,6 +90,7 @@
   "peerDependencies": {
     "react": "*",
     "react-native": "*",
+    "react-native-macos": "*",
     "react-native-windows": "*"
   },
   "workspaces": [
@@ -152,15 +154,15 @@
     ]
   },
   "codegenConfig": {
-    "name": "TestlibSpec",
+    "name": "MultiWindowSpec",
     "type": "modules",
     "jsSrcsDir": "src",
     "android": {
-      "javaPackageName": "com.testlib"
+      "javaPackageName": "com.multiwindow"
     },
     "windows": {
-      "namespace": "testlibCodegen",
-      "outputDirectory": "windows/testlib/codegen",
+      "namespace": "MultiWindowCodegen",
+      "outputDirectory": "windows/MultiWindow/codegen",
       "separateDataTypes": true
     }
   },
@@ -171,8 +173,8 @@
   },
   "react-native-windows": {
     "init-windows": {
-      "name": "testlib",
-      "namespace": "testlib",
+      "name": "MultiWindow",
+      "namespace": "MultiWindow",
       "template": "cpp-lib"
     }
   }

@@ -1,4 +1,7 @@
 {
-  "name": "TestlibExample",
-  "displayName": "TestlibExample"
+  "name": "MultiWindowExample",
+  "displayName": "MultiWindowExample",
+  "ios": {
+    "supportsTablet": true
+  }
 }

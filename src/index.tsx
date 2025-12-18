@@ -1,10 +1,7 @@
-import Testlib from './NativeTestlib';
-import type { WindowOptions } from './NativeTestlib';
+import MultiWindow from './NativeMultiWindow';
 
 export function multiply(a: number, b: number): number {
-  return Testlib.multiply(a, b);
+  return MultiWindow.multiply(a, b);
 }
 
-export function openNewWindow(windowOptions: WindowOptions): Promise<number> {
-  return Testlib.openNewWindow(windowOptions);
-}
+export const openNewWindow = MultiWindow.openNewWindow;
