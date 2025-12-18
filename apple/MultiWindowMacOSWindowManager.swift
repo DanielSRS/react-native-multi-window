@@ -11,6 +11,9 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
     case invalidComponentName = -73002
     case viewEmbeddingFailed = -73003
     case managerUnavailable = -73004
+    case closeManagerUnavailable = -73021
+    case invalidCloseIdentifier = -73022
+    case windowNotFound = -73023
   }
 
   private struct ParsedOptions {
@@ -76,6 +79,36 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
     } else {
       DispatchQueue.main.async(execute: executeWindowCreation)
     }
+  }
+
+  func closeWindow(withIdentifier identifier: NSNumber?) -> NSNumber {
+    guard let normalizedIdentifier = Self.normalizedIdentifier(from: identifier) else {
+      return Self.wrapError(.invalidCloseIdentifier)
+    }
+
+    let execute: () -> NSNumber = { [weak self] in
+      guard let self else {
+        return Self.wrapError(.closeManagerUnavailable)
+      }
+
+      guard let managedWindow = self.openWindows[normalizedIdentifier] else {
+        return Self.wrapError(.windowNotFound)
+      }
+
+      let window = managedWindow.window
+      if window.delegate == nil {
+        window.delegate = self
+      }
+
+      window.performClose(nil)
+      return NSNumber(value: Double(normalizedIdentifier))
+    }
+
+    if Thread.isMainThread {
+      return execute()
+    }
+
+    return DispatchQueue.main.sync(execute: execute)
   }
 
   func windowWillClose(_ notification: Notification) {
@@ -212,6 +245,22 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
 
   private static func wrapError(_ code: ErrorCode) -> NSNumber {
     NSNumber(value: Double(code.rawValue))
+  }
+
+  private static func normalizedIdentifier(from number: NSNumber?) -> UInt64? {
+    guard let value = number?.doubleValue,
+          value.isFinite,
+          value > 0,
+          value <= Double(UInt64.max) else {
+      return nil
+    }
+
+    let truncatedValue = floor(value)
+    guard truncatedValue == value else {
+      return nil
+    }
+
+    return UInt64(truncatedValue)
   }
 }
 

@@ -58,6 +58,12 @@ static inline NSDictionary *MWDictionaryFromOptions(JS::NativeMultiWindow::Windo
                                           }];
 }
 
+- (double)closeWindowBy:(double)identifier
+{
+  NSNumber *result = [[self macWindowManager] closeWindowWithIdentifier:@(identifier)];
+  return result.doubleValue;
+}
+
 + (NSString *)moduleName
 {
   return @"MultiWindow";

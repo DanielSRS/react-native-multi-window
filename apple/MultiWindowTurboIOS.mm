@@ -98,6 +98,16 @@ static inline NSString *MWTrimmedString(NSString *value)
   }
 }
 
+- (double)closeWindowBy:(double)identifier
+{
+  if (self.sceneCoordinator == nil) {
+    return MWWrapIOSError(MWIOSWindowErrorCodeCloseCoordinatorUnavailable).doubleValue;
+  }
+
+  NSNumber *result = [self.sceneCoordinator closeWindowWithIdentifierValue:identifier];
+  return result.doubleValue;
+}
+
 + (NSString *)moduleName
 {
   return @"MultiWindow";

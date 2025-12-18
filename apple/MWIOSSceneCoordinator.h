@@ -37,6 +37,10 @@ typedef NS_ENUM(NSInteger, MWIOSWindowErrorCode) {
   MWIOSWindowErrorCodeManagerUnavailable = -63724,
   MWIOSWindowErrorCodeUnsupportedPlatform = -36755,
   MWIOSWindowErrorCodeSceneRequestFailed = -63576,
+  MWIOSWindowErrorCodeCloseCoordinatorUnavailable = -63541,
+  MWIOSWindowErrorCodeCloseInvalidIdentifier = -63542,
+  MWIOSWindowErrorCodeCloseWindowNotFound = -63543,
+  MWIOSWindowErrorCodeCloseRequestFailed = -63544,
 };
 
 @interface MWIOSPendingWindowRequest : NSObject
@@ -56,6 +60,8 @@ typedef NS_ENUM(NSInteger, MWIOSWindowErrorCode) {
 - (void)requestWindowWithComponent:(NSString *)componentName
                               title:(NSString *)title
                              resolve:(RCTPromiseResolveBlock)resolve;
+
+- (NSNumber *_Nonnull)closeWindowWithIdentifierValue:(double)identifierValue;
 
 - (MWIOSPendingWindowRequest *_Nullable)consumePendingRequestWithToken:(NSString *)token;
 - (NSNumber *_Nullable)registerWindow:(UIWindow *)window

@@ -10,6 +10,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)updateBridge:(nullable RCTBridge *)bridge;
 - (void)openNewWindowWithOptions:(NSDictionary *)options
                        completion:(void (^)(NSNumber *result))completion;
+- (NSNumber *)closeWindowWithIdentifier:(NSNumber *)identifier;
 @end
 
 NS_ASSUME_NONNULL_END

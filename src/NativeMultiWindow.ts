@@ -50,6 +50,14 @@ type WindowCreationResult = Promise<number>;
 
 export interface Spec extends TurboModule {
   openNewWindow(options: WindowOptions): WindowCreationResult;
+  /**
+   * Closes the window with the specified ID.
+   * @param id The ID of the window to close.
+   * @returns An integer status code indicating success or failure.
+   * A positive value is the window ID that was closed and indicates success,
+   * while a negative value indicates an error.
+   */
+  closeWindowBy(id: number): number;
 }
 
 /**

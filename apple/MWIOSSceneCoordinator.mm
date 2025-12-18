@@ -8,6 +8,7 @@
 
 #import "MWIOSSceneCoordinator.h"
 
+#import <math.h>
 #import <React/RCTBridge.h>
 #import "MultiWindowEventEmitter.h"
 
@@ -157,6 +158,64 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
                                 }];
 }
 
+- (NSNumber *)closeWindowWithIdentifierValue:(double)identifierValue
+{
+  if (!isfinite(identifierValue)) {
+    return MWWrapIOSError(MWIOSWindowErrorCodeCloseInvalidIdentifier);
+  }
+
+  double truncatedIdentifier = floor(identifierValue);
+  if (truncatedIdentifier <= 0 || truncatedIdentifier != identifierValue) {
+    return MWWrapIOSError(MWIOSWindowErrorCodeCloseInvalidIdentifier);
+  }
+
+  NSNumber *identifierKey = @(truncatedIdentifier);
+  __block NSNumber *result = nil;
+
+  dispatch_block_t block = ^{
+    MWIOSWindowEntry *entry = self.activeWindows[identifierKey];
+    if (entry == nil) {
+      result = MWWrapIOSError(MWIOSWindowErrorCodeCloseWindowNotFound);
+      return;
+    }
+
+    UIApplication *application = [UIApplication sharedApplication];
+    if (application == nil) {
+      result = MWWrapIOSError(MWIOSWindowErrorCodeCloseCoordinatorUnavailable);
+      return;
+    }
+
+    UISceneSession *session = entry.session;
+    if (session == nil) {
+      [self.activeWindows removeObjectForKey:identifierKey];
+      result = MWWrapIOSError(MWIOSWindowErrorCodeCloseWindowNotFound);
+      return;
+    }
+
+    [self emitCloseRequestLogForEntry:entry identifier:identifierKey];
+
+    [application requestSceneSessionDestruction:session
+                                        options:nil
+                                    errorHandler:^(NSError *error) {
+                                      [self emitCloseRequestFailureForIdentifier:identifierKey error:error];
+                                    }];
+
+    result = identifierKey;
+  };
+
+  if ([NSThread isMainThread]) {
+    block();
+  } else {
+    dispatch_sync(dispatch_get_main_queue(), block);
+  }
+
+  if (result == nil) {
+    result = MWWrapIOSError(MWIOSWindowErrorCodeCloseRequestFailed);
+  }
+
+  return result;
+}
+
 - (void)failRequestWithToken:(NSString *)token error:(NSError *)error
 {
   MWIOSPendingWindowRequest *request = self.pendingRequests[token];
@@ -267,6 +326,38 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
       @"height": @(CGRectGetHeight(frame)),
     },
     @"componentName": entry.componentName ?: @"",
+  };
+
+  MWEmitLogEvent(self.bridge, payload);
+}
+
+- (void)emitCloseRequestLogForEntry:(MWIOSWindowEntry *)entry identifier:(NSNumber *)identifier
+{
+  if (self.bridge == nil) {
+    return;
+  }
+
+  NSDictionary *payload = @{
+    @"function": @"closeWindowBy",
+    @"window id": identifier ?: @0,
+    @"componentName": entry.componentName ?: @"",
+    @"title": entry.title ?: @"",
+  };
+
+  MWEmitLogEvent(self.bridge, payload);
+}
+
+- (void)emitCloseRequestFailureForIdentifier:(NSNumber *)identifier error:(NSError *)error
+{
+  if (self.bridge == nil) {
+    return;
+  }
+
+  NSDictionary *payload = @{
+    @"function": @"closeWindowByFailed",
+    @"window id": identifier ?: @0,
+    @"errorCode": @(error.code),
+    @"errorDomain": error.domain ?: @"",
   };
 
   MWEmitLogEvent(self.bridge, payload);

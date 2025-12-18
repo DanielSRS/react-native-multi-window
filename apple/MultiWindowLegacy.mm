@@ -47,6 +47,12 @@ RCT_EXPORT_METHOD(openNewWindow:(NSDictionary *)options
                                           }];
 }
 
+RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(closeWindowBy:(nonnull NSNumber *)identifier)
+{
+  NSNumber *result = [[self macWindowManager] closeWindowWithIdentifier:identifier ?: @0];
+  return result;
+}
+
 @end
 
 #endif
