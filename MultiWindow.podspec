@@ -29,7 +29,15 @@ Pod::Spec.new do |s|
     "apple/MultiWindowTurboIOS.mm",
     "apple/MultiWindowTurboMac.mm",
   ]
-  s.private_header_files = "apple/**/*.h"
+  s.public_header_files = [
+    "apple/MultiWindow.h",
+    "apple/MWIOSSceneCoordinator.h"
+  ]
+
+  s.pod_target_xcconfig = {
+    "DEFINES_MODULE" => "YES",
+    "CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES" => "YES"
+  }
 
 
   install_modules_dependencies(s)

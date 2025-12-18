@@ -3,20 +3,46 @@
 #if !TARGET_OS_OSX
 #import "MultiWindow.h"
 #import "MultiWindowEventEmitter.h"
+#import "MWIOSSceneCoordinator.h"
 #import <React/RCTBridgeModule.h>
+#import <UIKit/UIKit.h>
 
-static const double MWMacOSUnsupportedPlatformCode = -73005.0;
-static inline NSNumber *MWMultiply(double a, double b) {
-  return @(a * b);
+static inline NSNumber *MWWrapIOSError(MWIOSWindowErrorCode code)
+{
+  return @((double)code);
 }
 
+static inline NSString *MWTrimmedString(NSString *value)
+{
+  if (value == nil) {
+    return nil;
+  }
+
+  NSString *trimmed = [value stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+  return trimmed.length > 0 ? trimmed : nil;
+}
+
+@interface MultiWindow ()
+@property (nonatomic, strong) MWIOSSceneCoordinator *sceneCoordinator;
+@end
+
 @implementation MultiWindow
+
+- (instancetype)init
+{
+  self = [super init];
+  if (self) {
+    _sceneCoordinator = [MWIOSSceneCoordinator sharedCoordinator];
+  }
+  return self;
+}
 
 @synthesize bridge = _bridge;
 
 - (void)setBridge:(RCTBridge *)bridge
 {
   _bridge = bridge;
+  [self.sceneCoordinator updateBridge:bridge];
 }
 
 - (NSNumber *)multiply:(double)a b:(double)b
@@ -28,7 +54,7 @@ static inline NSNumber *MWMultiply(double a, double b) {
   };
 
   MWEmitLogEvent(self.bridge, payload);
-  return MWMultiply(a, b);
+  return @(a * b);
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
@@ -41,14 +67,48 @@ static inline NSNumber *MWMultiply(double a, double b) {
              resolve:(RCTPromiseResolveBlock)resolve
              reject:(RCTPromiseRejectBlock)reject
 {
-  (void)options;
   (void)reject;
 
   if (resolve == nil) {
     return;
   }
 
-  resolve(@(MWMacOSUnsupportedPlatformCode));
+  NSString *componentName = MWTrimmedString(options.componentName());
+  if (componentName.length == 0) {
+    resolve(MWWrapIOSError(MWIOSWindowErrorCodeInvalidComponent));
+    return;
+  }
+
+  NSString *title = MWTrimmedString(options.title());
+  if (title.length == 0) {
+    title = componentName;
+  }
+
+  if (self.sceneCoordinator == nil) {
+    resolve(MWWrapIOSError(MWIOSWindowErrorCodeManagerUnavailable));
+    return;
+  }
+
+  __weak MultiWindow *weakSelf = self;
+  dispatch_block_t requestBlock = ^{
+    __strong MultiWindow *strongSelf = weakSelf;
+    if (strongSelf == nil) {
+      resolve(MWWrapIOSError(MWIOSWindowErrorCodeManagerUnavailable));
+      return;
+    }
+
+    [strongSelf.sceneCoordinator requestWindowWithComponent:componentName
+                                                       title:title
+                                                      resolve:^(id result) {
+                                                        resolve(result);
+                                                      }];
+  };
+
+  if ([NSThread isMainThread]) {
+    requestBlock();
+  } else {
+    dispatch_async(dispatch_get_main_queue(), requestBlock);
+  }
 }
 
 + (NSString *)moduleName

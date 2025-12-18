@@ -1,4 +1,7 @@
 {
   "name": "MultiWindowExample",
-  "displayName": "MultiWindowExample"
+  "displayName": "MultiWindowExample",
+  "ios": {
+    "supportsTablet": true
+  }
 }
