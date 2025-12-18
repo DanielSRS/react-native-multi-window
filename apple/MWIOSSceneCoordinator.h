@@ -31,12 +31,12 @@ extern NSString *const MWIOSSceneComponentNameKey;
 extern NSString *const MWIOSSceneTitleKey;
 
 typedef NS_ENUM(NSInteger, MWIOSWindowErrorCode) {
-  MWIOSWindowErrorCodeBridgeUnavailable = -73001,
-  MWIOSWindowErrorCodeInvalidComponent = -73002,
-  MWIOSWindowErrorCodeEmbeddingFailed = -73003,
-  MWIOSWindowErrorCodeManagerUnavailable = -73004,
-  MWIOSWindowErrorCodeUnsupportedPlatform = -73005,
-  MWIOSWindowErrorCodeSceneRequestFailed = -73006,
+  MWIOSWindowErrorCodeBridgeUnavailable = -36991,
+  MWIOSWindowErrorCodeInvalidComponent = -63912,
+  MWIOSWindowErrorCodeEmbeddingFailed = -36853,
+  MWIOSWindowErrorCodeManagerUnavailable = -63724,
+  MWIOSWindowErrorCodeUnsupportedPlatform = -36755,
+  MWIOSWindowErrorCodeSceneRequestFailed = -63576,
 };
 
 @interface MWIOSPendingWindowRequest : NSObject
