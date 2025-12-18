@@ -3,12 +3,7 @@
 #if TARGET_OS_OSX && RCT_NEW_ARCH_ENABLED
 #import "MultiWindow.h"
 #import "MWMacWindowManager.h"
-#import "MultiWindowEventEmitter.h"
 #import <React/RCTBridgeModule.h>
-
-static inline NSNumber *MWMultiply(double a, double b) {
-  return @(a * b);
-}
 
 @interface MultiWindow ()
 @property (nonatomic, strong) MWMacWindowManager *macWindowManager;
@@ -39,18 +34,6 @@ static inline NSDictionary *MWDictionaryFromOptions(JS::NativeMultiWindow::Windo
     _macWindowManager = [MWMacWindowManager new];
   }
   return _macWindowManager;
-}
-
-- (NSNumber *)multiply:(double)a b:(double)b
-{
-  NSDictionary *payload = @{
-    @"message": [NSString stringWithFormat:@"MultiWindow multiply called with %f and %f", a, b],
-    @"a": @(a),
-    @"b": @(b),
-  };
-
-  MWEmitLogEvent(self.bridge, payload);
-  return MWMultiply(a, b);
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:

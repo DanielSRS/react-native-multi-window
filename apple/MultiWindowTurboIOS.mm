@@ -2,7 +2,6 @@
 
 #if !TARGET_OS_OSX
 #import "MultiWindow.h"
-#import "MultiWindowEventEmitter.h"
 #import "MWIOSSceneCoordinator.h"
 #import <React/RCTBridgeModule.h>
 #import <UIKit/UIKit.h>
@@ -43,18 +42,6 @@ static inline NSString *MWTrimmedString(NSString *value)
 {
   _bridge = bridge;
   [self.sceneCoordinator updateBridge:bridge];
-}
-
-- (NSNumber *)multiply:(double)a b:(double)b
-{
-  NSDictionary *payload = @{
-    @"message": [NSString stringWithFormat:@"MultiWindow multiply called with %f and %f", a, b],
-    @"a": @(a),
-    @"b": @(b),
-  };
-
-  MWEmitLogEvent(self.bridge, payload);
-  return @(a * b);
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
