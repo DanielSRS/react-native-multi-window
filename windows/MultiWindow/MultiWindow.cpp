@@ -78,6 +78,10 @@ void MultiWindow::RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const&
       {"remaining open windows", m_openWindows.size()},
       {"window id", id }
     });
+    EmitWindowEvent(JSValueObject{
+      {"type", 764},
+      {"id", static_cast<double>(id)}
+    });
     unloadAction.Completed([id](auto&&, auto&&) {
      });
   }
@@ -225,6 +229,20 @@ void MultiWindow::EmitLogEvent(JSValueObject payload) noexcept {
       L"emit",
       [payload = std::move(payload)](React::IJSValueWriter const& writer) noexcept {
         React::WriteArgs(writer, "MultiWindow/logs", payload);
+      }
+  );
+}
+
+void MultiWindow::EmitWindowEvent(JSValueObject payload) noexcept {
+  if (!m_context) {
+    return;
+  }
+
+  m_context.CallJSFunction(
+      L"RCTDeviceEventEmitter",
+      L"emit",
+      [payload = std::move(payload)](React::IJSValueWriter const& writer) noexcept {
+        React::WriteArgs(writer, "MultiWindow/event", payload);
       }
   );
 }
