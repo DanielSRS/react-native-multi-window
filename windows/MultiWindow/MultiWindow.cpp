@@ -108,9 +108,16 @@ void MultiWindow::openNewWindow(WindowOptions&& options, ReactPromiseDouble&& re
       if (std::holds_alternative<ReactWindow>(result)) {
         auto r = std::get<ReactWindow>(result);
         const auto hwnd = winrt::Microsoft::UI::GetWindowFromWindowId(r.window.Id());
-        openWindows[reinterpret_cast<uintptr_t>(hwnd)] = std::move(r);
-        innerPromise.Resolve((double) reinterpret_cast<uintptr_t>(hwnd));
-        openWindows.at(reinterpret_cast<uintptr_t>(hwnd)).window.Show();
+        const auto windowId = reinterpret_cast<uintptr_t>(hwnd);
+        openWindows[windowId] = std::move(r);
+        const auto windowIdDouble = static_cast<double>(windowId);
+        innerPromise.Resolve(windowIdDouble);
+        openWindows.at(windowId).window.Show();
+        EmitWindowEvent(JSValueObject{
+          {"type", 9873},
+          {"id", windowIdDouble},
+          {"title", opts.title}
+        });
       }
       else {
         auto errorCode = std::get<ReactWindowCreationError>(result);
