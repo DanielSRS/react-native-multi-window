@@ -1,11 +1,34 @@
 #include "pch.h"
 
-#include <sstream>
+#include <cmath>
+#include <future>
+#include <string>
 #include "MultiWindow.h"
 #include "Utilities.h"
 
 namespace winrt::MultiWindow
 {
+
+namespace
+{
+constexpr double kInvalidCloseIdentifier = -71021.0;
+constexpr double kWindowNotFound = -71022.0;
+constexpr double kCloseRequestFailed = -71023.0;
+
+bool NormalizeIdentifier(double id, uintptr_t& normalized) noexcept {
+  if (!std::isfinite(id) || id <= 0) {
+    return false;
+  }
+
+  const auto integral = static_cast<uintptr_t>(id);
+  if (static_cast<double>(integral) != id) {
+    return false;
+  }
+
+  normalized = integral;
+  return true;
+}
+} // namespace
 
 // See https://microsoft.github.io/react-native-windows/docs/native-platform for help writing native modules
 
@@ -107,15 +130,89 @@ void MultiWindow::openNewWindow(WindowOptions&& options, ReactPromiseDouble&& re
   result.Resolve(123.0);
 }
 
-JSValueObject MultiWindow::CreateMultiplyPayload(double a, double b) noexcept {
-  std::ostringstream messageStream;
-  messageStream << "MultiWindow multiply called with " << a << " and " << b;
+double MultiWindow::closeWindowBy(double id) noexcept {
+  uintptr_t normalizedIdentifier = 0;
+  const bool hasNormalizedIdentifier = NormalizeIdentifier(id, normalizedIdentifier);
 
-  return JSValueObject{
-      {"message", messageStream.str()},
-      {"a", a},
-      {"b", b},
+  double result = kInvalidCloseIdentifier;
+  std::string status = "invalid-input";
+  int remainingWindows = static_cast<int>(m_openWindows.size());
+
+  auto closeTask = [this,
+                    hasNormalizedIdentifier,
+                    &result,
+                    &status,
+                    &remainingWindows,
+                    normalizedIdentifier]() noexcept {
+    if (!hasNormalizedIdentifier) {
+      remainingWindows = static_cast<int>(m_openWindows.size());
+      return;
+    }
+
+    auto it = m_openWindows.find(normalizedIdentifier);
+    if (it == m_openWindows.end()) {
+      result = kWindowNotFound;
+      status = "not-found";
+      remainingWindows = static_cast<int>(m_openWindows.size());
+      return;
+    }
+
+    auto window = it->second.window;
+    bool requestSucceeded = false;
+
+    if (window) {
+      try {
+        window.Destroy();
+        requestSucceeded = true;
+      }
+      catch (...) {
+        requestSucceeded = false;
+      }
+    }
+
+    if (requestSucceeded) {
+      result = static_cast<double>(normalizedIdentifier);
+      status = "success";
+    }
+    else {
+      result = kCloseRequestFailed;
+      status = "request-failed";
+    }
+
+    remainingWindows = static_cast<int>(m_openWindows.size());
   };
+
+  auto dispatcher = m_context.UIDispatcher();
+  if (dispatcher && !dispatcher.HasThreadAccess()) {
+    std::promise<void> completion;
+    auto future = completion.get_future();
+
+    dispatcher.Post([closeTask, completion = std::move(completion)]() mutable {
+      closeTask();
+      completion.set_value();
+    });
+
+    future.wait();
+  }
+  else {
+    closeTask();
+  }
+
+  JSValueObject payload{
+      {"function", "closeWindowBy"},
+      {"requested id", id},
+      {"status", status},
+      {"remaining open windows", remainingWindows},
+      {"result", result},
+  };
+
+  if (hasNormalizedIdentifier) {
+    payload.insert_or_assign("normalized id", static_cast<double>(normalizedIdentifier));
+  }
+
+  EmitLogEvent(std::move(payload));
+
+  return result;
 }
 
 void MultiWindow::EmitLogEvent(JSValueObject payload) noexcept {

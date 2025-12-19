@@ -27,6 +27,7 @@ inline winrt::Microsoft::ReactNative::FieldMap GetStructInfo(MultiWindowSpec_Win
 struct MultiWindowSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
   static constexpr auto methods = std::tuple{
       Method<void(MultiWindowSpec_WindowOptions, Promise<double>) noexcept>{0, L"openNewWindow"},
+      SyncMethod<double(double) noexcept>{1, L"closeWindowBy"},
   };
 
   template <class TModule>
@@ -38,6 +39,11 @@ struct MultiWindowSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
           "openNewWindow",
           "    REACT_METHOD(openNewWindow) void openNewWindow(MultiWindowSpec_WindowOptions && options, ::React::ReactPromise<double> &&result) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(openNewWindow) static void openNewWindow(MultiWindowSpec_WindowOptions && options, ::React::ReactPromise<double> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          1,
+          "closeWindowBy",
+          "    REACT_SYNC_METHOD(closeWindowBy) double closeWindowBy(double id) noexcept { /* implementation */ }\n"
+          "    REACT_SYNC_METHOD(closeWindowBy) static double closeWindowBy(double id) noexcept { /* implementation */ }\n");
   }
 };
 

@@ -32,10 +32,12 @@ struct MultiWindow
   REACT_METHOD(openNewWindow)
   void openNewWindow(WindowOptions&& options, ReactPromiseDouble&& result) noexcept;
 
+  REACT_SYNC_METHOD(closeWindowBy)
+  double closeWindowBy(double id) noexcept;
+
  private:
   void EmitLogEvent(JSValueObject payload) noexcept;
   void RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const& window) noexcept;
-  JSValueObject CreateMultiplyPayload(double a, double b) noexcept;
 
   React::ReactContext m_context;
   std::map<uintptr_t, ReactWindow> m_openWindows;
