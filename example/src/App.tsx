@@ -9,9 +9,11 @@ import { closeWindowBy, openNewWindow } from '../../src/index';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { name as appName } from '../app.json';
 
-DeviceEventEmitter.addListener('MultiWindow/logs', (event) => {
-  console.log('Received multiWindowEvent:', event);
-});
+function isWindowCloseEvent(
+  event: any
+): event is { 'function': 'RemoveWindowCompleted'; 'window id': number } {
+  return event && typeof event['window id'] === 'number';
+}
 
 const up = {
   c: 0,
@@ -94,14 +96,19 @@ function useWindowList() {
   return { openWindows, add, close };
 }
 
+DeviceEventEmitter.addListener('MultiWindow/logs', (event) => {
+  console.log('EVENT:', event, 'typeof event: ', typeof event);
+  if (isWindowCloseEvent(event)) {
+    const windowId = event['window id'];
+    // console.log(`Window with ID ${windowId} has been closed.`);
+    WINDOW_REGISTRY.onClose(windowId);
+  }
+});
+
 export default function App() {
   const backgroundColor = useMemo(() => randomColor(), []);
   const { count, increment } = useCounter();
-  const {
-    openWindows: windows,
-    add: addWindow,
-    close: closeWindow,
-  } = useWindowList();
+  const { openWindows: windows, add: addWindow } = useWindowList();
 
   return (
     <View style={{ flex: 1, flexDirection: 'row' }}>
@@ -204,7 +211,7 @@ export default function App() {
                 onPress={() => {
                   const res = closeWindowBy(window.id);
                   if (res > 0) {
-                    closeWindow(window.id);
+                    // closeWindow(window.id);
                   }
                 }}
               />
