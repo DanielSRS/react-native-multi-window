@@ -277,6 +277,8 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
 
   [self.activeWindows removeObjectForKey:identifier];
   [self.sessionToIdentifier removeObjectForKey:session];
+
+  [self emitWindowClosedEventForIdentifier:identifier];
 }
 
 #pragma mark - Logging
@@ -361,6 +363,16 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
   };
 
   MWEmitLogEvent(self.bridge, payload);
+}
+
+- (void)emitWindowClosedEventForIdentifier:(NSNumber *)identifier
+{
+  if (self.bridge == nil || identifier == nil) {
+    return;
+  }
+
+  MWEmitWindowEvent(self.bridge,
+                    @{ @"type" : @(764), @"id" : @([identifier doubleValue]) });
 }
 
 @end

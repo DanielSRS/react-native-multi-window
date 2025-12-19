@@ -130,6 +130,8 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
       self.openWindows.removeValue(forKey: windowId)
       window.delegate = nil
 
+      self.emitWindowClosedEvent(id: windowId)
+
       let frame = window.frame
       self.emitLog([
         "function": "RemoveWindowCompleted",
@@ -220,6 +222,25 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
       "RCTDeviceEventEmitter",
       method: "emit",
       args: ["MultiWindow/logs", payload],
+      completion: nil
+    )
+  }
+
+  private func emitWindowClosedEvent(id: UInt64) {
+    guard let bridge else {
+      return
+    }
+
+    bridge.enqueueJSCall(
+      "RCTDeviceEventEmitter",
+      method: "emit",
+      args: [
+        "MultiWindow/event",
+        [
+          "type": 764,
+          "id": Double(id),
+        ],
+      ],
       completion: nil
     )
   }

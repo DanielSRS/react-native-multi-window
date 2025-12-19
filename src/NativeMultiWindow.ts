@@ -6,6 +6,18 @@ import {
 } from 'react-native';
 
 /**
+ * Event emitted when a window is closed.
+ * Contains the ID of the closed window.
+ * This is emited when a window is closed successfully
+ * no matter who initiated the close, either the user or programmatically
+ * called closeWindowBy.
+ */
+export interface WindowClosedEvent {
+  type: 764;
+  id: number;
+}
+
+/**
  * Types of windows that can be created. this is specific to Windows platform.
  * - 0: Standard window
  * - 1: Acrylic window

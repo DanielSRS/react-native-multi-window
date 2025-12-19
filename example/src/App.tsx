@@ -5,15 +5,13 @@ import {
   Button,
   DeviceEventEmitter,
 } from 'react-native';
-import { closeWindowBy, openNewWindow } from '../../src/index';
+import {
+  closeWindowBy,
+  openNewWindow,
+  type WindowClosedEvent,
+} from '../../src/index';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { name as appName } from '../app.json';
-
-function isWindowCloseEvent(
-  event: any
-): event is { 'function': 'RemoveWindowCompleted'; 'window id': number } {
-  return event && typeof event['window id'] === 'number';
-}
 
 const up = {
   c: 0,
@@ -98,12 +96,16 @@ function useWindowList() {
 
 DeviceEventEmitter.addListener('MultiWindow/logs', (event) => {
   console.log('EVENT:', event, 'typeof event: ', typeof event);
-  if (isWindowCloseEvent(event)) {
-    const windowId = event['window id'];
-    // console.log(`Window with ID ${windowId} has been closed.`);
-    WINDOW_REGISTRY.onClose(windowId);
-  }
 });
+
+DeviceEventEmitter.addListener(
+  'MultiWindow/event',
+  (event: WindowClosedEvent) => {
+    if (event.type === 764) {
+      WINDOW_REGISTRY.onClose(event.id);
+    }
+  }
+);
 
 export default function App() {
   const backgroundColor = useMemo(() => randomColor(), []);
