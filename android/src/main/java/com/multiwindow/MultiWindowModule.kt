@@ -72,14 +72,68 @@ class MultiWindowModule(
     }
   }
 
+  @ReactMethod(isBlockingSynchronousMethod = true)
+  override fun closeWindowBy(id: Double): Double {
+    val normalizedIdentifier = normalizeIdentifier(id)
+    var result = ErrorCodes.INVALID_CLOSE_IDENTIFIER.value
+    var status = "invalid-input"
+
+    if (normalizedIdentifier != null) {
+      when (MultiWindowRegistry.requestClose(normalizedIdentifier)) {
+        MultiWindowRegistry.CloseResult.SUCCESS -> {
+          result = normalizedIdentifier.toDouble()
+          status = "success"
+        }
+        MultiWindowRegistry.CloseResult.NOT_FOUND -> {
+          result = ErrorCodes.WINDOW_NOT_FOUND.value
+          status = "not-found"
+        }
+        MultiWindowRegistry.CloseResult.FAILED -> {
+          result = ErrorCodes.CLOSE_REQUEST_FAILED.value
+          status = "request-failed"
+        }
+      }
+    }
+
+    emitLogEvent(
+      reactContext,
+      Arguments.createMap().apply {
+        putString("function", "closeWindowBy")
+        putDouble("requested id", id)
+        normalizedIdentifier?.let { putDouble("normalized id", it.toDouble()) }
+        putString("status", status)
+        putInt("remaining open windows", MultiWindowRegistry.activeWindowCount())
+        putDouble("result", result)
+      },
+    )
+
+    return result
+  }
+
   private fun ReadableMap.getStringOrNull(key: String): String? {
     return if (hasKey(key) && !isNull(key)) getString(key) else null
+  }
+
+  private fun normalizeIdentifier(id: Double): Long? {
+    if (!id.isFinite()) {
+      return null
+    }
+
+    if (id <= 0) {
+      return null
+    }
+
+    val longValue = id.toLong()
+    return if (longValue.toDouble() == id) longValue else null
   }
 
   private enum class ErrorCodes(val value: Double) {
     NO_FOREGROUND_ACTIVITY(-71001.0),
     INVALID_COMPONENT_NAME(-71002.0),
     START_ACTIVITY_FAILED(-71003.0),
+    INVALID_CLOSE_IDENTIFIER(-71021.0),
+    WINDOW_NOT_FOUND(-71022.0),
+    CLOSE_REQUEST_FAILED(-71023.0),
   }
 
   companion object {
