@@ -48,7 +48,71 @@ On iPad you must opt-in to multi-scene support so the library’s scene delegate
 </dict>
 ```
 
-That is the only manual change required—the library swizzles `RCTAppDelegate` for you and intercepts `RCTReactNativeFactory` to reuse the host bridge.
+After updating the Info.plist, wire the library into your `AppDelegate`. Call `MWReactAppIntegration.adoptReactNativeFactory` after creating the factory—MultiWindow now always manages the React Native startup sequence:
+
+```diff
+	import UIKit
+	import React
+	import React_RCTAppDelegate
+	import ReactAppDependencyProvider
++	import MultiWindow
+
+	@main
+	class AppDelegate: UIResponder, UIApplicationDelegate {
+		var window: UIWindow?
+
+		var reactNativeDelegate: ReactNativeDelegate?
+-		var reactNativeFactory: RCTReactNativeFactory?
+
+		func application(
+			_ application: UIApplication,
+			didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+		) -> Bool {
+			let delegate = ReactNativeDelegate()
+			let factory = RCTReactNativeFactory(delegate: delegate)
+			delegate.dependencyProvider = RCTAppDependencyProvider()
+
+			reactNativeDelegate = delegate
+-			reactNativeFactory = factory
+
+			window = UIWindow(frame: UIScreen.main.bounds)
+
+-			factory.startReactNative(
+-				withModuleName: "MultiWindowExample",
+-				in: window,
+-				launchOptions: launchOptions
+-			)
+
++			MWReactAppIntegration.adoptReactNativeFactory(
++				factory,
++				moduleName: "MultiWindowExample",
++				initialProperties: nil,
++				launchOptions: launchOptions,
++				window: window
++			)
+
+			return true
+		}
+	}
+
+	class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
+		override func sourceURL(for bridge: RCTBridge) -> URL? {
+			self.bundleURL()
+		}
+
+		override func bundleURL() -> URL? {
+	#if DEBUG
+-			RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
++			return RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
+	#else
+-			Bundle.main.url(forResource: "main", withExtension: "jsbundle")
++			return Bundle.main.url(forResource: "main", withExtension: "jsbundle")
+	#endif
+		}
+	}
+```
+
+When the Info.plist points to `MWReactSceneDelegate` (as shown above), MultiWindow drives all window creation through the scene delegate. Apps that omit this configuration will simply fail to create extra scenes, so make sure you add the manifest block before wiring up the integration.
 
 > iOS only allows additional scenes on iPad hardware. Calls on iPhone will resolve with an unsupported-platform error code.
 

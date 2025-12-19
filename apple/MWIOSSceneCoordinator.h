@@ -29,6 +29,7 @@ extern NSString *const MWIOSSceneActivityType;
 extern NSString *const MWIOSSceneTokenKey;
 extern NSString *const MWIOSSceneComponentNameKey;
 extern NSString *const MWIOSSceneTitleKey;
+extern NSString *const MWIOSSceneIsManagedKey;
 
 typedef NS_ENUM(NSInteger, MWIOSWindowErrorCode) {
   MWIOSWindowErrorCodeBridgeUnavailable = -36991,

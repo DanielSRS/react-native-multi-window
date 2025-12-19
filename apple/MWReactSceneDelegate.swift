@@ -68,12 +68,19 @@ public final class MWReactSceneDelegate: UIResponder, UIWindowSceneDelegate {
   }
 
   private func updateUserActivity(for scene: UIScene, metadata: SceneMetadata) {
+    guard metadata.shouldPersistUserActivity, let token = metadata.token else {
+      scene.userActivity = nil
+      return
+    }
+
     let activity = NSUserActivity(activityType: MWIOSSceneActivityType)
     activity.title = metadata.title
+    activity.targetContentIdentifier = token
     activity.userInfo = [
-      MWIOSSceneTokenKey: metadata.token ?? UUID().uuidString,
+      MWIOSSceneTokenKey: token,
       MWIOSSceneComponentNameKey: metadata.componentName,
       MWIOSSceneTitleKey: metadata.title,
+      MWIOSSceneIsManagedKey: true,
     ]
     scene.userActivity = activity
   }
@@ -84,23 +91,52 @@ private struct SceneMetadata {
   let token: String?
   let componentName: String
   let title: String
+  let shouldPersistUserActivity: Bool
 
   init(
     connectionOptions: UIScene.ConnectionOptions,
     session: UISceneSession,
     defaultComponentName: String
   ) {
-    if let activity = connectionOptions.userActivities.first ?? session.stateRestorationActivity,
-       let userInfo = activity.userInfo,
-       let component = userInfo[MWIOSSceneComponentNameKey] as? String {
-      token = userInfo[MWIOSSceneTokenKey] as? String
-      componentName = component
-      title = (userInfo[MWIOSSceneTitleKey] as? String) ?? component
+    if let managed = SceneMetadata.metadata(from: connectionOptions)
+      ?? SceneMetadata.metadata(from: session.stateRestorationActivity) {
+      token = managed.token
+      componentName = managed.component
+      title = managed.title
+      shouldPersistUserActivity = true
     } else {
       token = nil
       componentName = defaultComponentName
       title = defaultComponentName
+      shouldPersistUserActivity = false
     }
+  }
+
+  private static func metadata(from connectionOptions: UIScene.ConnectionOptions) -> (token: String?, component: String, title: String)? {
+    for activity in connectionOptions.userActivities {
+      if let managed = metadata(from: activity) {
+        return managed
+      }
+    }
+    return nil
+  }
+
+  private static func metadata(from activity: NSUserActivity?) -> (token: String?, component: String, title: String)? {
+    guard let activity, let userInfo = activity.userInfo else {
+      return nil
+    }
+
+    guard let isManaged = userInfo[MWIOSSceneIsManagedKey] as? NSNumber, isManaged.boolValue else {
+      return nil
+    }
+
+    guard let component = userInfo[MWIOSSceneComponentNameKey] as? String else {
+      return nil
+    }
+
+    let token = userInfo[MWIOSSceneTokenKey] as? String
+    let title = (userInfo[MWIOSSceneTitleKey] as? String) ?? component
+    return (token, component, title)
   }
 }
 

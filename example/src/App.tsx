@@ -8,7 +8,7 @@ import {
 import {
   closeWindowBy,
   openNewWindow,
-  type WindowClosedEvent,
+  type WindowEvent,
 } from '../../src/index';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { name as appName } from '../app.json';
@@ -98,19 +98,24 @@ DeviceEventEmitter.addListener('MultiWindow/logs', (event) => {
   console.log('EVENT:', event, 'typeof event: ', typeof event);
 });
 
-DeviceEventEmitter.addListener(
-  'MultiWindow/event',
-  (event: WindowClosedEvent) => {
-    if (event.type === 764) {
-      WINDOW_REGISTRY.onClose(event.id);
-    }
+DeviceEventEmitter.addListener('MultiWindow/event', (event: WindowEvent) => {
+  if (event.type === 764) {
+    WINDOW_REGISTRY.onClose(event.id);
   }
-);
+  if (event.type === 9873) {
+    WINDOW_REGISTRY.onOpen({ id: event.id, title: event.title });
+  }
+});
 
 export default function App() {
   const backgroundColor = useMemo(() => randomColor(), []);
   const { count, increment } = useCounter();
-  const { openWindows: windows, add: addWindow } = useWindowList();
+  const { openWindows: windows } = useWindowList();
+
+  useEffect(() => {
+    // force the module to be load
+    closeWindowBy(0);
+  }, []);
 
   return (
     <View style={{ flex: 1, flexDirection: 'row' }}>
@@ -128,9 +133,6 @@ export default function App() {
                 windows_WindowType: 0,
               });
               console.log('Response code from openNewWindow:', responseCode);
-              if (responseCode > 0) {
-                addWindow({ id: responseCode, title });
-              }
             } catch (error) {
               console.error('Failed to open new window:', error);
             }
@@ -150,9 +152,6 @@ export default function App() {
                 'Response code from openNewWindow (acrylic):',
                 responseCode
               );
-              if (responseCode > 0) {
-                addWindow({ id: responseCode, title: 'Acrylic vibes' });
-              }
             } catch (error) {
               console.error('Failed to open acrylic window:', error);
             }
@@ -169,9 +168,6 @@ export default function App() {
                 windows_WindowType: 2,
               });
               console.log('Response code from openNewWindow:', responseCode);
-              if (responseCode > 0) {
-                addWindow({ id: responseCode, title: 'Agora vai with mica?' });
-              }
             } catch (error) {
               console.error('Failed to open new window:', error);
             }
@@ -181,15 +177,12 @@ export default function App() {
         />
         <Button
           title="Second"
-          onPress={async () => {
-            const responseCode = await openNewWindow({
+          onPress={() => {
+            openNewWindow({
               title: 'Second Window',
               componentName: 'Second',
               windows_WindowType: 0,
             });
-            if (responseCode > 0) {
-              addWindow({ id: responseCode, title: 'Second Window' });
-            }
           }}
         />
       </View>

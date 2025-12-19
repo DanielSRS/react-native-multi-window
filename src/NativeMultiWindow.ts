@@ -18,6 +18,23 @@ export interface WindowClosedEvent {
 }
 
 /**
+ * Event emitted when a window is opened.
+ * Contains the ID and title of the opened window.
+ * This is emitted when a new window is successfully created
+ * no matter who initiated the open, either the user
+ * (like on ipadOS you can drag a window to create a new one
+ * or even click the +) or programmatically
+ * called openNewWindow.
+ */
+export interface WindowOpenedEvent {
+  type: 9873;
+  id: number;
+  title: string;
+}
+
+export type WindowEvent = WindowClosedEvent | WindowOpenedEvent;
+
+/**
  * Types of windows that can be created. this is specific to Windows platform.
  * - 0: Standard window
  * - 1: Acrylic window

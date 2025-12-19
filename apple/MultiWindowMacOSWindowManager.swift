@@ -65,6 +65,7 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
 
       self.openWindows[windowIdentifier] = ManagedWindow(id: windowIdentifier, window: window)
       self.emitOpenLog(options: parsedOptions, window: window)
+      self.emitWindowOpenedEvent(id: windowIdentifier, title: parsedOptions.title)
 
       window.makeKeyAndOrderFront(nil)
       if !NSApplication.shared.isActive {
@@ -239,6 +240,26 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
         [
           "type": 764,
           "id": Double(id),
+        ],
+      ],
+      completion: nil
+    )
+  }
+
+  private func emitWindowOpenedEvent(id: UInt64, title: String) {
+    guard let bridge else {
+      return
+    }
+
+    bridge.enqueueJSCall(
+      "RCTDeviceEventEmitter",
+      method: "emit",
+      args: [
+        "MultiWindow/event",
+        [
+          "type": 9873,
+          "id": Double(id),
+          "title": title,
         ],
       ],
       completion: nil

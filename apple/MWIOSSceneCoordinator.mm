@@ -10,12 +10,15 @@
 
 #import <math.h>
 #import <React/RCTBridge.h>
+#import <React/RCTBridgeConstants.h>
+#import <React/RCTConstants.h>
 #import "MultiWindowEventEmitter.h"
 
 NSString *const MWIOSSceneActivityType = @"com.reactnativemultiwindow.scene";
 NSString *const MWIOSSceneTokenKey = @"token";
 NSString *const MWIOSSceneComponentNameKey = @"componentName";
 NSString *const MWIOSSceneTitleKey = @"title";
+NSString *const MWIOSSceneIsManagedKey = @"isManaged";
 
 static inline NSNumber *MWWrapIOSError(MWIOSWindowErrorCode code)
 {
@@ -54,6 +57,9 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
 @property (nonatomic, strong) NSMutableDictionary<NSNumber *, MWIOSWindowEntry *> *activeWindows;
 @property (nonatomic, strong) NSMapTable<UISceneSession *, NSNumber *> *sessionToIdentifier;
 @property (nonatomic, assign) double nextWindowIdentifier;
+@property (nonatomic, strong) NSMutableArray<NSDictionary *> *pendingWindowEvents;
+@property (nonatomic, strong) NSHashTable<RCTBridge *> *activeBridges;
+@property (nonatomic, strong) NSMutableSet<NSNumber *> *programmaticCloseIdentifiers;
 @end
 
 @implementation MWIOSSceneCoordinator
@@ -76,6 +82,19 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
     _activeWindows = [NSMutableDictionary dictionary];
     _sessionToIdentifier = [NSMapTable weakToStrongObjectsMapTable];
     _nextWindowIdentifier = 1;
+    _pendingWindowEvents = [NSMutableArray array];
+    _activeBridges = [NSHashTable weakObjectsHashTable];
+    _programmaticCloseIdentifiers = [NSMutableSet set];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleJavaScriptDidLoad:)
+                                                 name:RCTJavaScriptDidLoadNotification
+                                               object:nil];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleBridgeWillInvalidate:)
+                                                 name:RCTBridgeWillInvalidateModulesNotification
+                                               object:nil];
   }
   return self;
 }
@@ -83,6 +102,28 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
 - (void)updateBridge:(RCTBridge *)bridge
 {
   _bridge = bridge;
+
+  if (bridge == nil) {
+    return;
+  }
+
+  [self registerActiveBridge:bridge];
+  [self flushPendingEventsToBridge:bridge];
+
+  if (bridge == nil) {
+    return;
+  }
+
+  if (self.pendingWindowEvents.count == 0) {
+    return;
+  }
+
+  NSArray<NSDictionary *> *eventsToEmit = [self.pendingWindowEvents copy];
+  [self.pendingWindowEvents removeAllObjects];
+
+  for (NSDictionary *payload in eventsToEmit) {
+    MWEmitWindowEvent(bridge, payload);
+  }
 }
 
 - (RCTBridge *)bridge
@@ -145,6 +186,7 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
     MWIOSSceneTokenKey: token,
     MWIOSSceneComponentNameKey: normalizedComponent,
     MWIOSSceneTitleKey: normalizedTitle,
+    MWIOSSceneIsManagedKey: @YES,
   };
 
   UIApplication *application = [UIApplication sharedApplication];
@@ -179,12 +221,6 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
       return;
     }
 
-    UIApplication *application = [UIApplication sharedApplication];
-    if (application == nil) {
-      result = MWWrapIOSError(MWIOSWindowErrorCodeCloseCoordinatorUnavailable);
-      return;
-    }
-
     UISceneSession *session = entry.session;
     if (session == nil) {
       [self.activeWindows removeObjectForKey:identifierKey];
@@ -192,13 +228,34 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
       return;
     }
 
+    UIApplication *application = [UIApplication sharedApplication];
     [self emitCloseRequestLogForEntry:entry identifier:identifierKey];
 
+    __weak __typeof(self) weakSelf = self;
     [application requestSceneSessionDestruction:session
                                         options:nil
                                     errorHandler:^(NSError *error) {
-                                      [self emitCloseRequestFailureForIdentifier:identifierKey error:error];
+                                      __typeof(self) strongSelf = weakSelf;
+                                      if (strongSelf == nil) {
+                                        return;
+                                      }
+
+                                      dispatch_async(dispatch_get_main_queue(), ^{
+                                        [strongSelf emitCloseRequestFailureForIdentifier:identifierKey error:error];
+
+                                        if ([strongSelf.programmaticCloseIdentifiers containsObject:identifierKey]) {
+                                          [strongSelf.programmaticCloseIdentifiers removeObject:identifierKey];
+
+                                          MWIOSWindowEntry *failedEntry = strongSelf.activeWindows[identifierKey];
+                                          if (failedEntry != nil) {
+                                            [strongSelf emitWindowOpenedEventForEntry:failedEntry identifier:identifierKey];
+                                          }
+                                        }
+                                      });
                                     }];
+
+    [self.programmaticCloseIdentifiers addObject:identifierKey];
+    [self emitWindowClosedEventForIdentifier:identifierKey];
 
     result = identifierKey;
   };
@@ -254,6 +311,7 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
   [self.sessionToIdentifier setObject:identifier forKey:session];
 
   [self emitOpenLogForEntry:entry identifier:identifier];
+  [self emitWindowOpenedEventForEntry:entry identifier:identifier];
 
   return identifier;
 }
@@ -277,8 +335,11 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
 
   [self.activeWindows removeObjectForKey:identifier];
   [self.sessionToIdentifier removeObjectForKey:session];
-
-  [self emitWindowClosedEventForIdentifier:identifier];
+  if ([self.programmaticCloseIdentifiers containsObject:identifier]) {
+    [self.programmaticCloseIdentifiers removeObject:identifier];
+  } else {
+    [self emitWindowClosedEventForIdentifier:identifier];
+  }
 }
 
 #pragma mark - Logging
@@ -367,12 +428,107 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
 
 - (void)emitWindowClosedEventForIdentifier:(NSNumber *)identifier
 {
-  if (self.bridge == nil || identifier == nil) {
+  if (identifier == nil) {
     return;
   }
 
-  MWEmitWindowEvent(self.bridge,
-                    @{ @"type" : @(764), @"id" : @([identifier doubleValue]) });
+  [self dispatchWindowEvent:@{ @"type" : @(764), @"id" : @([identifier doubleValue]) }];
+}
+
+- (void)emitWindowOpenedEventForEntry:(MWIOSWindowEntry *)entry identifier:(NSNumber *)identifier
+{
+  if (identifier == nil) {
+    return;
+  }
+
+  NSDictionary *payload =
+      @{ @"type" : @(9873), @"id" : @([identifier doubleValue]), @"title" : entry.title ?: @"" };
+  [self dispatchWindowEvent:payload];
+}
+
+- (void)dispatchWindowEvent:(NSDictionary *)payload
+{
+  if (payload == nil) {
+    return;
+  }
+
+  BOOL emitted = NO;
+  for (RCTBridge *bridge in self.activeBridges) {
+    if (bridge == nil) {
+      continue;
+    }
+
+    MWEmitWindowEvent(bridge, payload);
+    emitted = YES;
+  }
+
+  if (!emitted) {
+    [self.pendingWindowEvents addObject:payload];
+  }
+}
+
+- (void)handleJavaScriptDidLoad:(NSNotification *)notification
+{
+  RCTBridge *loadedBridge = (RCTBridge *)notification.object;
+  if (![loadedBridge isKindOfClass:[RCTBridge class]]) {
+    return;
+  }
+
+  [self registerActiveBridge:loadedBridge];
+
+  if (self.bridge == nil) {
+    _bridge = loadedBridge;
+  }
+
+  [self flushPendingEventsToBridge:loadedBridge];
+}
+
+- (void)handleBridgeWillInvalidate:(NSNotification *)notification
+{
+  RCTBridge *invalidatingBridge = (RCTBridge *)notification.object;
+  if (![invalidatingBridge isKindOfClass:[RCTBridge class]]) {
+    return;
+  }
+
+  [self.activeBridges removeObject:invalidatingBridge];
+
+  if (self.bridge == invalidatingBridge) {
+    _bridge = nil;
+  }
+}
+
+- (void)registerActiveBridge:(RCTBridge *)bridge
+{
+  if (bridge == nil) {
+    return;
+  }
+
+  if (![self.activeBridges containsObject:bridge]) {
+    [self.activeBridges addObject:bridge];
+  }
+}
+
+- (void)flushPendingEventsToBridge:(RCTBridge *)bridge
+{
+  if (bridge == nil) {
+    return;
+  }
+
+  if (self.pendingWindowEvents.count == 0) {
+    return;
+  }
+
+  NSArray<NSDictionary *> *pending = [self.pendingWindowEvents copy];
+  [self.pendingWindowEvents removeAllObjects];
+
+  for (NSDictionary *payload in pending) {
+    MWEmitWindowEvent(bridge, payload);
+  }
+}
+
+- (void)dealloc
+{
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 @end
