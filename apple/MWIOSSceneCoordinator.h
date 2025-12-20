@@ -30,6 +30,7 @@ extern NSString *const MWIOSSceneTokenKey;
 extern NSString *const MWIOSSceneComponentNameKey;
 extern NSString *const MWIOSSceneTitleKey;
 extern NSString *const MWIOSSceneIsManagedKey;
+extern NSString *const MWIOSSceneInitialPropsKey;
 
 typedef NS_ENUM(NSInteger, MWIOSWindowErrorCode) {
   MWIOSWindowErrorCodeBridgeUnavailable = -36991,
@@ -48,6 +49,7 @@ typedef NS_ENUM(NSInteger, MWIOSWindowErrorCode) {
 @property (nonatomic, copy) NSString *token;
 @property (nonatomic, copy) NSString *componentName;
 @property (nonatomic, copy) NSString *title;
+@property (nonatomic, copy, nullable) NSDictionary *initialProps;
 @property (nonatomic, copy, nullable) RCTPromiseResolveBlock resolve;
 @end
 
@@ -60,6 +62,7 @@ typedef NS_ENUM(NSInteger, MWIOSWindowErrorCode) {
 
 - (void)requestWindowWithComponent:(NSString *)componentName
                               title:(NSString *)title
+                   initialProperties:(NSDictionary *_Nullable)initialProperties
                              resolve:(RCTPromiseResolveBlock)resolve;
 
 - (NSNumber *_Nonnull)closeWindowWithIdentifierValue:(double)identifierValue;

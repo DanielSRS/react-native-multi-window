@@ -21,6 +21,36 @@ static inline NSString *MWTrimmedString(NSString *value)
   return trimmed.length > 0 ? trimmed : nil;
 }
 
+static inline NSDictionary *MWNormalizedInitialProps(id value)
+{
+  if (value == nil || value == (id)kCFNull) {
+    return nil;
+  }
+
+  if (![value isKindOfClass:[NSDictionary class]]) {
+    return nil;
+  }
+
+  NSDictionary *dictionary = (NSDictionary *)value;
+  __block BOOL inserted = NO;
+  NSMutableDictionary *normalized = [NSMutableDictionary dictionaryWithCapacity:dictionary.count];
+
+  [dictionary enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
+    if (![key isKindOfClass:[NSString class]]) {
+      return;
+    }
+
+    normalized[key] = obj;
+    inserted = YES;
+  }];
+
+  if (!inserted && dictionary.count > 0) {
+    return nil;
+  }
+
+  return inserted ? [normalized copy] : @{};
+}
+
 @interface MultiWindow ()
 @property (nonatomic, strong) MWIOSSceneCoordinator *sceneCoordinator;
 @end
@@ -71,6 +101,8 @@ static inline NSString *MWTrimmedString(NSString *value)
     title = componentName;
   }
 
+  NSDictionary *initialProps = MWNormalizedInitialProps(options.initialProps());
+
   if (self.sceneCoordinator == nil) {
     resolve(MWWrapIOSError(MWIOSWindowErrorCodeManagerUnavailable));
     return;
@@ -86,6 +118,7 @@ static inline NSString *MWTrimmedString(NSString *value)
 
     [strongSelf.sceneCoordinator requestWindowWithComponent:componentName
                                                        title:title
+                                            initialProperties:initialProps
                                                       resolve:^(id result) {
                                                         resolve(result);
                                                       }];

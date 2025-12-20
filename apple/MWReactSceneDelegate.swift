@@ -20,7 +20,7 @@ public final class MWReactSceneDelegate: UIResponder, UIWindowSceneDelegate {
       return
     }
 
-    let metadata = SceneMetadata(
+    var metadata = SceneMetadata(
       connectionOptions: connectionOptions,
       session: session,
       defaultComponentName: configuration.defaultComponentName
@@ -36,10 +36,17 @@ public final class MWReactSceneDelegate: UIResponder, UIWindowSceneDelegate {
     let window = UIWindow(windowScene: windowScene)
     self.window = window
 
+    let pendingInitialProps = pendingRequest?.initialProps as? [String: Any]
+    let resolvedInitialProps = pendingInitialProps ?? metadata.initialProps
+    metadata.initialProps = resolvedInitialProps
+
+    let renderInitialProps: [String: Any]? = resolvedInitialProps.map { ["initialProps": $0] }
+      ?? configuration.initialProperties()
+
     host.render(
       moduleName: metadata.componentName,
       in: window,
-      initialProperties: configuration.initialProperties(),
+      initialProperties: renderInitialProps,
       launchOptions: configuration.dequeueLaunchOptions()
     )
 
@@ -76,12 +83,18 @@ public final class MWReactSceneDelegate: UIResponder, UIWindowSceneDelegate {
     let activity = NSUserActivity(activityType: MWIOSSceneActivityType)
     activity.title = metadata.title
     activity.targetContentIdentifier = token
-    activity.userInfo = [
+    var userInfo: [String: Any] = [
       MWIOSSceneTokenKey: token,
       MWIOSSceneComponentNameKey: metadata.componentName,
       MWIOSSceneTitleKey: metadata.title,
       MWIOSSceneIsManagedKey: true,
     ]
+
+    if let props = metadata.initialProps {
+      userInfo[MWIOSSceneInitialPropsKey] = props
+    }
+
+    activity.userInfo = userInfo
     scene.userActivity = activity
   }
 }
@@ -92,6 +105,7 @@ private struct SceneMetadata {
   let componentName: String
   let title: String
   let shouldPersistUserActivity: Bool
+  var initialProps: [String: Any]?
 
   init(
     connectionOptions: UIScene.ConnectionOptions,
@@ -103,16 +117,20 @@ private struct SceneMetadata {
       token = managed.token
       componentName = managed.component
       title = managed.title
+      initialProps = managed.initialProps
       shouldPersistUserActivity = true
     } else {
       token = nil
       componentName = defaultComponentName
       title = defaultComponentName
+      initialProps = nil
       shouldPersistUserActivity = false
     }
   }
 
-  private static func metadata(from connectionOptions: UIScene.ConnectionOptions) -> (token: String?, component: String, title: String)? {
+  private static func metadata(
+    from connectionOptions: UIScene.ConnectionOptions
+  ) -> (token: String?, component: String, title: String, initialProps: [String: Any]?)? {
     for activity in connectionOptions.userActivities {
       if let managed = metadata(from: activity) {
         return managed
@@ -121,7 +139,9 @@ private struct SceneMetadata {
     return nil
   }
 
-  private static func metadata(from activity: NSUserActivity?) -> (token: String?, component: String, title: String)? {
+  private static func metadata(
+    from activity: NSUserActivity?
+  ) -> (token: String?, component: String, title: String, initialProps: [String: Any]?)? {
     guard let activity, let userInfo = activity.userInfo else {
       return nil
     }
@@ -136,7 +156,8 @@ private struct SceneMetadata {
 
     let token = userInfo[MWIOSSceneTokenKey] as? String
     let title = (userInfo[MWIOSSceneTitleKey] as? String) ?? component
-    return (token, component, title)
+    let initialProps = userInfo[MWIOSSceneInitialPropsKey] as? [String: Any]
+    return (token, component, title, initialProps)
   }
 }
 

@@ -19,6 +19,7 @@ NSString *const MWIOSSceneTokenKey = @"token";
 NSString *const MWIOSSceneComponentNameKey = @"componentName";
 NSString *const MWIOSSceneTitleKey = @"title";
 NSString *const MWIOSSceneIsManagedKey = @"isManaged";
+NSString *const MWIOSSceneInitialPropsKey = @"initialProps";
 
 static inline NSNumber *MWWrapIOSError(MWIOSWindowErrorCode code)
 {
@@ -142,6 +143,7 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
 
 - (void)requestWindowWithComponent:(NSString *)componentName
                               title:(NSString *)title
+                   initialProperties:(NSDictionary *_Nullable)initialProperties
                              resolve:(RCTPromiseResolveBlock)resolve
 {
   if (resolve == nil) {
@@ -175,6 +177,7 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
   request.token = token;
   request.componentName = normalizedComponent;
   request.title = normalizedTitle;
+  request.initialProps = initialProperties;
   request.resolve = [resolve copy];
 
   self.pendingRequests[token] = request;
@@ -182,12 +185,18 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
   NSUserActivity *activity = [[NSUserActivity alloc] initWithActivityType:MWIOSSceneActivityType];
   activity.title = normalizedTitle;
   activity.targetContentIdentifier = token;
-  activity.userInfo = @{
+  NSMutableDictionary *userInfo = [@{
     MWIOSSceneTokenKey: token,
     MWIOSSceneComponentNameKey: normalizedComponent,
     MWIOSSceneTitleKey: normalizedTitle,
     MWIOSSceneIsManagedKey: @YES,
-  };
+  } mutableCopy];
+
+  if (initialProperties != nil) {
+    userInfo[MWIOSSceneInitialPropsKey] = initialProperties;
+  }
+
+  activity.userInfo = userInfo;
 
   UIApplication *application = [UIApplication sharedApplication];
   [application requestSceneSessionActivation:nil
