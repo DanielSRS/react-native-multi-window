@@ -19,6 +19,7 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
   private struct ParsedOptions {
     let componentName: String
     let title: String
+    let initialProps: [String: Any]?
   }
 
   private struct ManagedWindow {
@@ -53,7 +54,12 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
 
       let window = self.buildWindow(title: parsedOptions.title)
 
-      guard self.embedReactView(component: parsedOptions.componentName, bridge: bridge, into: window) else {
+      guard self.embedReactView(
+        component: parsedOptions.componentName,
+        initialProps: parsedOptions.initialProps,
+        bridge: bridge,
+        into: window
+      ) else {
         completion(Self.wrapError(.viewEmbeddingFailed))
         return
       }
@@ -181,8 +187,18 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
     return NSApplication.shared.mainWindow?.frame
   }
 
-  private func embedReactView(component: String, bridge: RCTBridge, into window: NSWindow) -> Bool {
-    let rootView = RCTRootView(bridge: bridge, moduleName: component, initialProperties: nil)
+  private func embedReactView(
+    component: String,
+    initialProps: [String: Any]?,
+    bridge: RCTBridge,
+    into window: NSWindow
+  ) -> Bool {
+    let rootInitialProps: [AnyHashable: Any]? = initialProps.map { ["initialProps": $0] }
+    let rootView = RCTRootView(
+      bridge: bridge,
+      moduleName: component,
+      initialProperties: rootInitialProps
+    )
     guard let contentView = window.contentView else {
       return false
     }
@@ -200,6 +216,7 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
       "function": "openNewWindow",
       "title": options.title,
       "componentName": options.componentName,
+      "hasInitialProps": options.initialProps != nil,
       "number of open windows": Double(openWindows.count),
       "frame": [
         "originX": Double(frame.origin.x),
@@ -272,8 +289,67 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
     }
 
     let title = trimmedString(from: options?["title"]) ?? componentName
+    let initialProps = normalizedInitialProps(from: options?["initialProps"])
 
-    return ParsedOptions(componentName: componentName, title: title)
+    return ParsedOptions(componentName: componentName, title: title, initialProps: initialProps)
+  }
+
+  private static func normalizedInitialProps(from value: Any?) -> [String: Any]? {
+    guard let value, !(value is NSNull) else {
+      return nil
+    }
+
+    if let props = value as? [String: Any] {
+      return props
+    }
+
+    if let props = value as? [AnyHashable: Any] {
+      var normalized: [String: Any] = [:]
+      var inserted = false
+
+      for (key, entry) in props {
+        guard let keyString = key as? String else {
+          continue
+        }
+
+        normalized[keyString] = entry
+        inserted = true
+      }
+
+      if inserted {
+        return normalized
+      }
+
+      if props.isEmpty {
+        return [:]
+      }
+
+      return nil
+    }
+
+    if let props = value as? NSDictionary {
+      var normalized: [String: Any] = [:]
+      var inserted = false
+
+      props.enumerateKeysAndObjects { key, entry, _ in
+        if let keyString = key as? String {
+          normalized[keyString] = entry
+          inserted = true
+        }
+      }
+
+      if inserted {
+        return normalized
+      }
+
+      if props.count == 0 {
+        return [:]
+      }
+
+      return nil
+    }
+
+    return nil
   }
 
   private static func trimmedString(from value: Any?) -> String? {

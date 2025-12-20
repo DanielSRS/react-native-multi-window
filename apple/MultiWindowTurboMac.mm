@@ -10,11 +10,18 @@
 @end
 
 static inline NSDictionary *MWDictionaryFromOptions(JS::NativeMultiWindow::WindowOptions &options) {
-  return @{
+  NSMutableDictionary *dictionary = [@{
     @"title": options.title() ?: @"",
     @"componentName": options.componentName() ?: @"",
     @"windows_WindowType": @(options.windows_WindowType()),
-  };
+  } mutableCopy];
+
+  id initialProps = options.initialProps();
+  if (initialProps != nil && initialProps != (id)kCFNull) {
+    dictionary[@"initialProps"] = initialProps;
+  }
+
+  return dictionary;
 }
 
 @implementation MultiWindow
