@@ -66,6 +66,10 @@ export interface WindowOptions {
    * @platform windows
    */
   windows_WindowType: WindowType;
+  /**
+   * Initial props to pass to the React component in the new window.
+   */
+  initialProps?: Object;
 }
 
 /**

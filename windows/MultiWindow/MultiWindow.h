@@ -2,13 +2,13 @@
 
 #include "pch.h"
 #include "resource.h"
+#include "NativeModules.h"
 
 #if __has_include("codegen/NativeMultiWindowDataTypes.g.h")
   #include "codegen/NativeMultiWindowDataTypes.g.h"
 #endif
 #include "codegen/NativeMultiWindowSpec.g.h"
 
-#include "NativeModules.h"
 #include "ReactWindow.h"
 #include "map"
 

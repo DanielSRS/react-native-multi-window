@@ -20,6 +20,7 @@ inline winrt::Microsoft::ReactNative::FieldMap GetStructInfo(MultiWindowSpec_Win
         {L"title", &MultiWindowSpec_WindowOptions::title},
         {L"componentName", &MultiWindowSpec_WindowOptions::componentName},
         {L"windows_WindowType", &MultiWindowSpec_WindowOptions::windows_WindowType},
+        {L"initialProps", &MultiWindowSpec_WindowOptions::initialProps},
     };
     return fieldMap;
 }

@@ -107,7 +107,8 @@ DeviceEventEmitter.addListener('MultiWindow/event', (event: WindowEvent) => {
   }
 });
 
-export default function App() {
+export default function App(props: unknown) {
+  console.log('!!!!!!!App props:', props);
   const backgroundColor = useMemo(() => randomColor(), []);
   const { count, increment } = useCounter();
   const { openWindows: windows } = useWindowList();
@@ -166,6 +167,9 @@ export default function App() {
                 title: 'Agora vai with mica?',
                 componentName: appName,
                 windows_WindowType: 2,
+                initialProps: {
+                  info: 'This is a mica window ;;;',
+                },
               });
               console.log('Response code from openNewWindow:', responseCode);
             } catch (error) {

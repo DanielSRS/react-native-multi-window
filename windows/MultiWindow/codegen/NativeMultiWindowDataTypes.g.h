@@ -20,6 +20,7 @@ struct MultiWindowSpec_WindowOptions {
     std::string title;
     std::string componentName;
     double windows_WindowType;
+    std::optional<::React::JSValue> initialProps;
 };
 
 } // namespace MultiWindowCodegen

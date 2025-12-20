@@ -109,6 +109,13 @@ namespace winrt::MultiWindow {
 
     ReactViewOptions viewOptions;
     viewOptions.ComponentName(winrt::to_hstring(options.componentName));
+    winrt::Microsoft::ReactNative::JSValueObject initialProps;
+    if (options.initialProps.has_value()) {
+      initialProps["initialProps"] = options.initialProps.value().Copy();
+    }
+    viewOptions.InitialProps([props = std::move(initialProps)](const winrt::Microsoft::ReactNative::IJSValueWriter& writer) noexcept {
+      winrt::Microsoft::ReactNative::WriteValue(writer, props);
+    });
 
     auto instanceSettings = reactHost.InstanceSettings();
     auto properties = instanceSettings.Properties();
