@@ -57,15 +57,18 @@ class MultiWindowModule(
 
   @ReactMethod
   override fun openNewWindow(options: ReadableMap, promise: Promise) {
+    val componentName = options.getStringOrNull("componentName")?.ifBlank { null }
+    val title = options.getStringOrNull("title") ?: ""
+
     emitLogEvent(
       reactContext,
       Arguments.createMap().apply {
         putString("function", "openNewWindow")
-        putString("componentName", options.getStringOrNull("componentName") ?: "")
+        putString("componentName", componentName ?: "")
+        putString("title", title)
       },
     )
 
-    val componentName = options.getStringOrNull("componentName")?.ifBlank { null }
     if (componentName == null) {
       promise.resolve(ErrorCodes.INVALID_COMPONENT_NAME.value)
       return
@@ -84,6 +87,7 @@ class MultiWindowModule(
       addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
       putExtra(MultiWindowActivity.EXTRA_COMPONENT_NAME, componentName)
       putExtra(MultiWindowActivity.EXTRA_INSTANCE_ID, windowId)
+      putExtra(MultiWindowActivity.EXTRA_TITLE, title)
     }
 
     runCatching {
@@ -182,6 +186,19 @@ class MultiWindowModule(
         Arguments.createMap().apply {
           putInt("type", 764)
           putDouble("id", id.toDouble())
+        },
+      )
+    }
+
+    internal fun emitWindowOpenedEvent(id: Long, title: String?) {
+      val context = reactContextRef?.get() ?: return
+
+      emitWindowEvent(
+        context,
+        Arguments.createMap().apply {
+          putInt("type", 9873)
+          putDouble("id", id.toDouble())
+          putString("title", title ?: "")
         },
       )
     }

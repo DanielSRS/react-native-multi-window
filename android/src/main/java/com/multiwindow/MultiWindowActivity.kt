@@ -13,6 +13,7 @@ class MultiWindowActivity : ReactActivity() {
     windowIdentifier = intent?.getLongExtra(EXTRA_INSTANCE_ID, INVALID_WINDOW_ID) ?: INVALID_WINDOW_ID
     if (windowIdentifier > 0) {
       MultiWindowRegistry.register(windowIdentifier, this)
+      MultiWindowModule.emitWindowOpenedEvent(windowIdentifier, intent?.getStringExtra(EXTRA_TITLE))
     }
   }
 
@@ -43,6 +44,7 @@ class MultiWindowActivity : ReactActivity() {
   companion object {
     const val EXTRA_COMPONENT_NAME = "com.multiwindow.extra.COMPONENT_NAME"
     const val EXTRA_INSTANCE_ID = "com.multiwindow.extra.INSTANCE_ID"
+    const val EXTRA_TITLE = "com.multiwindow.extra.TITLE"
     private const val INVALID_WINDOW_ID = -1L
   }
 }
