@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Button,
   DeviceEventEmitter,
+  Platform,
 } from 'react-native';
 import {
   closeWindowBy,
@@ -73,6 +74,13 @@ function useWindowList() {
   const [openWindows, setOpenWindows] = useState(Object.values(OPEN_WINDOWS));
 
   useEffect(() => {
+    if (Platform.OS === 'ios') {
+      // On ipadOS, a new window can be created by the os UI, so a queue
+      // of event is created at launch, but since turboModules are lazy loaded,
+      // those events are not sent until the module is loaded, so we call
+      // closeWindowBy with an invalid id to flush the queue.
+      closeWindowBy(0);
+    }
     const uppp = () => {
       setOpenWindows(Object.values(OPEN_WINDOWS));
     };
@@ -108,15 +116,14 @@ DeviceEventEmitter.addListener('MultiWindow/event', (event: WindowEvent) => {
 });
 
 export default function App(props: unknown) {
-  console.log('!!!!!!!App props:', props);
   const backgroundColor = useMemo(() => randomColor(), []);
   const { count, increment } = useCounter();
   const { openWindows: windows } = useWindowList();
 
   useEffect(() => {
+    console.log('!!!!!!!App props:', props);
     // force the module to be load
-    closeWindowBy(0);
-  }, []);
+  }, [props]);
 
   return (
     <View style={{ flex: 1, flexDirection: 'row' }}>
