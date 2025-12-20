@@ -9,6 +9,7 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicLong
 
 @ReactModule(name = MultiWindowModule.NAME)
@@ -16,6 +17,20 @@ class MultiWindowModule(
   private val reactContext: ReactApplicationContext,
 ) :
   NativeMultiWindowSpec(reactContext) {
+
+  init {
+    registerModuleContext(reactContext)
+  }
+
+  override fun initialize() {
+    super.initialize()
+    registerModuleContext(reactContext)
+  }
+
+  override fun invalidate() {
+    unregisterModuleContext(reactContext)
+    super.invalidate()
+  }
 
   private val windowIdGenerator = AtomicLong(0)
 
@@ -30,6 +45,14 @@ class MultiWindowModule(
     context
       .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
       .emit("MultiWindow/logs", payload)
+  }
+
+  private fun registerModuleContext(context: ReactApplicationContext) {
+    Companion.registerModuleContext(context)
+  }
+
+  private fun unregisterModuleContext(context: ReactApplicationContext) {
+    Companion.unregisterModuleContext(context)
   }
 
   @ReactMethod
@@ -138,5 +161,40 @@ class MultiWindowModule(
 
   companion object {
     const val NAME = "MultiWindow"
+
+    @Volatile
+    private var reactContextRef: WeakReference<ReactApplicationContext>? = null
+
+    private fun emitWindowEvent(
+      context: ReactApplicationContext,
+      payload: WritableMap,
+    ) {
+      context
+        .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+        .emit("MultiWindow/event", payload)
+    }
+
+    internal fun emitWindowClosedEvent(id: Long) {
+      val context = reactContextRef?.get() ?: return
+
+      emitWindowEvent(
+        context,
+        Arguments.createMap().apply {
+          putInt("type", 764)
+          putDouble("id", id.toDouble())
+        },
+      )
+    }
+
+    internal fun registerModuleContext(context: ReactApplicationContext) {
+      reactContextRef = WeakReference(context)
+    }
+
+    internal fun unregisterModuleContext(context: ReactApplicationContext) {
+      val stored = reactContextRef?.get()
+      if (stored == null || stored == context) {
+        reactContextRef = null
+      }
+    }
   }
 }

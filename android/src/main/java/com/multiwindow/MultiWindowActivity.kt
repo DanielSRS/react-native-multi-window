@@ -19,6 +19,7 @@ class MultiWindowActivity : ReactActivity() {
   override fun onDestroy() {
     if (windowIdentifier > 0) {
       MultiWindowRegistry.unregister(windowIdentifier, this)
+      MultiWindowModule.emitWindowClosedEvent(windowIdentifier)
     }
     super.onDestroy()
   }
