@@ -82,12 +82,17 @@ class MultiWindowModule(
 
     val windowId = windowIdGenerator.incrementAndGet()
 
+    val initialProps = options.getMapOrNull("initialProps")?.let { Arguments.toBundle(it) }
+
     val intent = Intent(activity, MultiWindowActivity::class.java).apply {
       addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
       addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
       putExtra(MultiWindowActivity.EXTRA_COMPONENT_NAME, componentName)
       putExtra(MultiWindowActivity.EXTRA_INSTANCE_ID, windowId)
       putExtra(MultiWindowActivity.EXTRA_TITLE, title)
+      initialProps?.let {
+        putExtra(MultiWindowActivity.EXTRA_INITIAL_PROPS, it)
+      }
     }
 
     runCatching {
@@ -139,6 +144,10 @@ class MultiWindowModule(
 
   private fun ReadableMap.getStringOrNull(key: String): String? {
     return if (hasKey(key) && !isNull(key)) getString(key) else null
+  }
+
+  private fun ReadableMap.getMapOrNull(key: String): ReadableMap? {
+    return if (hasKey(key) && !isNull(key)) getMap(key) else null
   }
 
   private fun normalizeIdentifier(id: Double): Long? {

@@ -34,10 +34,16 @@ class MultiWindowActivity : ReactActivity() {
     override fun getMainComponentName(): String? =
       activity.intent?.getStringExtra(EXTRA_COMPONENT_NAME)?.takeUnless { it.isNullOrBlank() }
 
-    override fun getLaunchOptions(): Bundle = Bundle().apply {
+    override fun getLaunchOptions(): Bundle {
       val windowId = activity.intent?.getLongExtra(EXTRA_INSTANCE_ID, INVALID_WINDOW_ID) ?: INVALID_WINDOW_ID
-      putDouble("windowId", windowId.toDouble())
-      putBoolean("isAndroidMultiWindow", true)
+      val launchOptions = Bundle()
+
+      activity.intent?.getBundleExtra(EXTRA_INITIAL_PROPS)?.let { launchOptions.putAll(it) }
+
+      launchOptions.putDouble("windowId", windowId.toDouble())
+      launchOptions.putBoolean("isAndroidMultiWindow", true)
+
+      return launchOptions
     }
   }
 
@@ -45,6 +51,7 @@ class MultiWindowActivity : ReactActivity() {
     const val EXTRA_COMPONENT_NAME = "com.multiwindow.extra.COMPONENT_NAME"
     const val EXTRA_INSTANCE_ID = "com.multiwindow.extra.INSTANCE_ID"
     const val EXTRA_TITLE = "com.multiwindow.extra.TITLE"
+    const val EXTRA_INITIAL_PROPS = "com.multiwindow.extra.INITIAL_PROPS"
     private const val INVALID_WINDOW_ID = -1L
   }
 }
