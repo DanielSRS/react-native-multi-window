@@ -167,6 +167,7 @@ AppRegistry.registerComponent('Dashboard', () => Dashboard);
 | `componentName` | `string` | ✅ | Registered component to render (matches `AppRegistry` name). |
 | `title` | `string` | ✅ | Title shown on platforms that display window chrome / Scene title. |
 | `windows_WindowType` | `0 \| 1 \| 2` | ⚠️ Windows only | Host style on Windows (`0` = standard, `1` = acrylic, `2` = mica). Ignored on iOS/macOS/Android. |
+| `initialProps` | `Record<string, unknown>` | ❌ | Optional props passed to the registered component. Supported on Android, iOS, macOS, and Windows. |
 
 The promise always resolves with a numeric code:
 
