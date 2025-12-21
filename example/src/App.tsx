@@ -11,41 +11,9 @@ import {
   useWindowList,
   WINDOW_TYPE,
 } from '../../src/index';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { name as appName } from '../app.json';
-
-const up = {
-  c: 0,
-  fn: () => {
-    up.c += 1;
-    up.notify();
-  },
-  subscribers: new Set<() => void>(),
-  notify: () => {
-    up.subscribers.forEach((fn) => fn());
-  },
-};
-
-function useCounter() {
-  const [count, setCount] = useState(up.c);
-
-  useEffect(() => {
-    const uppp = () => {
-      setCount(up.c);
-    };
-    up.subscribers.add(uppp);
-
-    return () => {
-      up.subscribers.delete(uppp);
-    };
-  }, []);
-
-  const increment = useCallback(() => {
-    up.fn();
-  }, []);
-
-  return { count, increment };
-}
+import { useCounter } from './useCounter';
 
 DeviceEventEmitter.addListener('MultiWindow/logs', (event) => {
   console.log('EVENT:', event, 'typeof event: ', typeof event);
