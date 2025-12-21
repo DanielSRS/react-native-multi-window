@@ -1,7 +1,14 @@
-import MultiWindow, { type WindowEvent as TT } from './NativeMultiWindow';
+import MultiWindow from './NativeMultiWindow';
 
 export const openNewWindow = MultiWindow.openNewWindow;
 
 export const closeWindowBy = MultiWindow.closeWindowBy;
 
-export type WindowEvent = TT;
+export { useWindowList } from './hooks';
+export { WINDOW_TYPE } from './NativeMultiWindow';
+
+export type {
+  WindowEvent,
+  WindowOptions,
+  WindowType,
+} from './NativeMultiWindow';

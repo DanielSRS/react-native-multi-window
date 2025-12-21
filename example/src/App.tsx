@@ -4,12 +4,12 @@ import {
   StyleSheet,
   Button,
   DeviceEventEmitter,
-  Platform,
 } from 'react-native';
 import {
   closeWindowBy,
   openNewWindow,
-  type WindowEvent,
+  useWindowList,
+  WINDOW_TYPE,
 } from '../../src/index';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { name as appName } from '../app.json';
@@ -47,78 +47,14 @@ function useCounter() {
   return { count, increment };
 }
 
-const OPEN_WINDOWS: Record<
-  number,
-  {
-    title: string;
-    id: number;
-  }
-> = {};
-
-const WINDOW_REGISTRY = {
-  onOpen: (window: { title: string; id: number }) => {
-    OPEN_WINDOWS[window.id] = window;
-    WINDOW_REGISTRY.notify();
-  },
-  onClose: (id: number) => {
-    delete OPEN_WINDOWS[id];
-    WINDOW_REGISTRY.notify();
-  },
-  subscribers: new Set<() => void>(),
-  notify: () => {
-    WINDOW_REGISTRY.subscribers.forEach((fn) => fn());
-  },
-};
-
-function useWindowList() {
-  const [openWindows, setOpenWindows] = useState(Object.values(OPEN_WINDOWS));
-
-  useEffect(() => {
-    if (Platform.OS === 'ios') {
-      // On ipadOS, a new window can be created by the os UI, so a queue
-      // of event is created at launch, but since turboModules are lazy loaded,
-      // those events are not sent until the module is loaded, so we call
-      // closeWindowBy with an invalid id to flush the queue.
-      closeWindowBy(0);
-    }
-    const uppp = () => {
-      setOpenWindows(Object.values(OPEN_WINDOWS));
-    };
-    WINDOW_REGISTRY.subscribers.add(uppp);
-
-    return () => {
-      WINDOW_REGISTRY.subscribers.delete(uppp);
-    };
-  }, []);
-
-  const add = useCallback((window: { title: string; id: number }) => {
-    WINDOW_REGISTRY.onOpen(window);
-  }, []);
-
-  const close = useCallback((id: number) => {
-    WINDOW_REGISTRY.onClose(id);
-  }, []);
-
-  return { openWindows, add, close };
-}
-
 DeviceEventEmitter.addListener('MultiWindow/logs', (event) => {
   console.log('EVENT:', event, 'typeof event: ', typeof event);
-});
-
-DeviceEventEmitter.addListener('MultiWindow/event', (event: WindowEvent) => {
-  if (event.type === 764) {
-    WINDOW_REGISTRY.onClose(event.id);
-  }
-  if (event.type === 9873) {
-    WINDOW_REGISTRY.onOpen({ id: event.id, title: event.title });
-  }
 });
 
 export default function App(props: unknown) {
   const backgroundColor = useMemo(() => randomColor(), []);
   const { count, increment } = useCounter();
-  const { openWindows: windows } = useWindowList();
+  const windows = useWindowList();
 
   useEffect(() => {
     console.log('!!!!!!!App props:', props);
@@ -138,7 +74,7 @@ export default function App(props: unknown) {
               const responseCode = await openNewWindow({
                 title,
                 componentName: appName,
-                windows_WindowType: 0,
+                windows_WindowType: WINDOW_TYPE.DEFAULT,
               });
               console.log('Response code from openNewWindow:', responseCode);
             } catch (error) {
@@ -154,7 +90,7 @@ export default function App(props: unknown) {
               const responseCode = await openNewWindow({
                 title: 'Acrylic vibes',
                 componentName: appName,
-                windows_WindowType: 1,
+                windows_WindowType: WINDOW_TYPE.ACRYLIC,
               });
               console.log(
                 'Response code from openNewWindow (acrylic):',
@@ -173,7 +109,7 @@ export default function App(props: unknown) {
               const responseCode = await openNewWindow({
                 title: 'Agora vai with mica?',
                 componentName: appName,
-                windows_WindowType: 2,
+                windows_WindowType: WINDOW_TYPE.MICA,
                 initialProps: {
                   info: 'This is a mica window ;;;',
                 },

@@ -5,6 +5,12 @@ import {
   type TurboModule,
 } from 'react-native';
 
+export const WINDOW_TYPE = {
+  DEFAULT: 0,
+  ACRYLIC: 1,
+  MICA: 2,
+} as const;
+
 /**
  * Event emitted when a window is closed.
  * Contains the ID of the closed window.
