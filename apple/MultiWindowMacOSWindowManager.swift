@@ -43,6 +43,47 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
       name: NSWindow.didBecomeKeyNotification,
       object: nil
     )
+
+    DispatchQueue.main.async { [weak self] in
+      guard let self else { return }
+
+      guard let mainWindow = NSApplication.shared.mainWindow ?? NSApplication.shared.keyWindow else {
+        return
+      }
+
+      // If it's already registered, nothing to do.
+      if self.openWindows.values.contains(where: { $0.window === mainWindow }) {
+        return
+      }
+
+      let ptr = Unmanaged.passUnretained(mainWindow).toOpaque()
+      let windowId = UInt64(UInt(bitPattern: ptr))
+
+      if mainWindow.delegate == nil {
+        mainWindow.delegate = self
+      }
+
+      mainWindow.identifier = NSUserInterfaceItemIdentifier("multiwindow-\(windowId)")
+      self.openWindows[windowId] = ManagedWindow(id: windowId, window: mainWindow)
+
+      self.emitWindowOpenedEvent(id: windowId, title: mainWindow.title)
+      let frame = mainWindow.frame
+      self.emitLog([
+        "function": "registerMainWindow",
+        "title": mainWindow.title,
+        "number of open windows": Double(self.openWindows.count),
+        "frame": [
+          "originX": Double(frame.origin.x),
+          "originY": Double(frame.origin.y),
+          "width": Double(frame.size.width),
+          "height": Double(frame.size.height),
+        ],
+        "isVisible": mainWindow.isVisible,
+        "isKeyWindow": mainWindow.isKeyWindow,
+        "isMiniaturized": mainWindow.isMiniaturized,
+        "screenName": mainWindow.screen?.localizedName ?? "unknown",
+      ])
+    }
   }
 
   func openNewWindow(withOptions options: NSDictionary?, completion: @escaping (NSNumber) -> Void) {
