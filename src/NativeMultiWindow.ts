@@ -38,7 +38,22 @@ export interface WindowOpenedEvent {
   title: string;
 }
 
-export type WindowEvent = WindowClosedEvent | WindowOpenedEvent;
+/**
+ * Event emitted when a window gains focus.
+ * Contains the ID of the focused window.
+ */
+export interface WindowFocusEvent {
+  type: 4521;
+  /**
+   * The ID of the window that gained focus.
+   */
+  id: number;
+}
+
+export type WindowEvent =
+  | WindowClosedEvent
+  | WindowOpenedEvent
+  | WindowFocusEvent;
 
 /**
  * Types of windows that can be created. this is specific to Windows platform.

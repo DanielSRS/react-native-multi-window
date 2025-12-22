@@ -47,21 +47,15 @@ export function useWindowDiagnostics(
   return { eventLog, nativeLogs };
 }
 
-type LocalWindowEvent = {
-  type: number;
-  id: number;
-  title?: string;
-  recordedAt: number;
-};
-
-export function formatEvent(event: WindowEventLog | LocalWindowEvent) {
-  const timestamp = new Date((event as any).recordedAt).toLocaleTimeString();
-  const t = (event as any).type as number;
-  if (t === 9873) {
-    return `[${timestamp}] Opened #${(event as any).id} – ${(event as any).title}`;
+export function formatEvent(event: WindowEventLog) {
+  const timestamp = new Date(event.recordedAt).toLocaleTimeString();
+  const t = event.type;
+  switch (t) {
+    case 4521:
+      return `[${timestamp}] Focused window #${event.id}`;
+    case 764:
+      return `[${timestamp}] Closed window #${event.id}`;
+    case 9873:
+      return `[${timestamp}] Opened #${event.id} – ${event.title}`;
   }
-  if (t === 764) {
-    return `[${timestamp}] Closed window #${(event as any).id}`;
-  }
-  return `[${timestamp}] Event ${t} for window #${(event as any).id}`;
 }
