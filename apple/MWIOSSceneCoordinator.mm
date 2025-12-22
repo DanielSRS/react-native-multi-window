@@ -41,6 +41,8 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
 @property (nonatomic, strong) UISceneSession *session;
 @property (nonatomic, copy) NSString *componentName;
 @property (nonatomic, copy) NSString *title;
+@property (nonatomic, strong) UITapGestureRecognizer *interactionRecognizer;
+@property (nonatomic, strong) UIPanGestureRecognizer *interactionPanRecognizer;
 @end
 
 @implementation MWIOSWindowEntry
@@ -52,7 +54,7 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
 @implementation MWIOSPendingWindowRequest
 @end
 
-@interface MWIOSSceneCoordinator ()
+@interface MWIOSSceneCoordinator () <UIGestureRecognizerDelegate>
 @property (nonatomic, weak) RCTBridge *bridge;
 @property (nonatomic, strong) NSMutableDictionary<NSString *, MWIOSPendingWindowRequest *> *pendingRequests;
 @property (nonatomic, strong) NSMutableDictionary<NSNumber *, MWIOSWindowEntry *> *activeWindows;
@@ -61,6 +63,7 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
 @property (nonatomic, strong) NSMutableArray<NSDictionary *> *pendingWindowEvents;
 @property (nonatomic, strong) NSHashTable<RCTBridge *> *activeBridges;
 @property (nonatomic, strong) NSMutableSet<NSNumber *> *programmaticCloseIdentifiers;
+@property (nonatomic, strong) NSNumber *currentFocusedIdentifier;
 @end
 
 @implementation MWIOSSceneCoordinator
@@ -319,6 +322,28 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
   self.activeWindows[identifier] = entry;
   [self.sessionToIdentifier setObject:identifier forKey:session];
 
+  // Observe when this UIWindow becomes key so we can emit focus events
+  [[NSNotificationCenter defaultCenter] addObserver:self
+                                           selector:@selector(handleWindowDidBecomeKeyNotification:)
+                                               name:UIWindowDidBecomeKeyNotification
+                                             object:window];
+
+  // Add an interaction recognizer to capture taps inside the window
+  UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                                        action:@selector(handleWindowInteraction:)];
+  tap.cancelsTouchesInView = NO;
+  tap.delegate = self;
+  [window addGestureRecognizer:tap];
+  entry.interactionRecognizer = tap;
+
+  // Also add a pan recognizer so scroll interactions are detected as focus
+  UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self
+                                                                         action:@selector(handleWindowInteraction:)];
+  pan.cancelsTouchesInView = NO;
+  pan.delegate = self;
+  [window addGestureRecognizer:pan];
+  entry.interactionPanRecognizer = pan;
+
   [self emitOpenLogForEntry:entry identifier:identifier];
   [self emitWindowOpenedEventForEntry:entry identifier:identifier];
 
@@ -341,9 +366,27 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
   if (entry != nil) {
     [self emitCloseLogForEntry:entry identifier:identifier];
   }
+  // Stop observing key-window notifications for this window to avoid leaks.
+  if (entry.window != nil) {
+    [[NSNotificationCenter defaultCenter] removeObserver:self
+                                                      name:UIWindowDidBecomeKeyNotification
+                                                    object:entry.window];
+    if (entry.interactionRecognizer) {
+      [entry.window removeGestureRecognizer:entry.interactionRecognizer];
+      entry.interactionRecognizer = nil;
+    }
+    if (entry.interactionPanRecognizer) {
+      [entry.window removeGestureRecognizer:entry.interactionPanRecognizer];
+      entry.interactionPanRecognizer = nil;
+    }
+  }
 
   [self.activeWindows removeObjectForKey:identifier];
   [self.sessionToIdentifier removeObjectForKey:session];
+  // If the closed/unregistered window was focused, clear the focused marker.
+  if (self.currentFocusedIdentifier != nil && [self.currentFocusedIdentifier isEqualToNumber:identifier]) {
+    self.currentFocusedIdentifier = nil;
+  }
   if ([self.programmaticCloseIdentifiers containsObject:identifier]) {
     [self.programmaticCloseIdentifiers removeObject:identifier];
   } else {
@@ -455,6 +498,23 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
   [self dispatchWindowEvent:payload];
 }
 
+- (void)emitWindowFocusEventForIdentifier:(NSNumber *)identifier
+{
+  if (identifier == nil) {
+    return;
+  }
+
+  // Avoid emitting duplicate focus events for the same focused window.
+  if (self.currentFocusedIdentifier != nil && [self.currentFocusedIdentifier isEqualToNumber:identifier]) {
+    return;
+  }
+
+  self.currentFocusedIdentifier = identifier;
+
+  NSDictionary *payload = @{ @"type" : @(4521), @"id" : @([identifier doubleValue]) };
+  [self dispatchWindowEvent:payload];
+}
+
 - (void)dispatchWindowEvent:(NSDictionary *)payload
 {
   if (payload == nil) {
@@ -474,6 +534,59 @@ static inline NSString *MWIOSTrimmedString(NSString *value)
   if (!emitted) {
     [self.pendingWindowEvents addObject:payload];
   }
+}
+
+- (void)handleWindowDidBecomeKeyNotification:(NSNotification *)notification
+{
+  UIWindow *window = (UIWindow *)notification.object;
+  if (window == nil) {
+    return;
+  }
+
+  // Find the identifier for this window
+  NSNumber *foundIdentifier = nil;
+  for (NSNumber *identifier in self.activeWindows) {
+    MWIOSWindowEntry *entry = self.activeWindows[identifier];
+    if (entry != nil && entry.window == window) {
+      foundIdentifier = identifier;
+      break;
+    }
+  }
+
+  if (foundIdentifier != nil) {
+    [self emitWindowFocusEventForIdentifier:foundIdentifier];
+  }
+}
+
+- (void)handleWindowInteraction:(UITapGestureRecognizer *)gesture
+{
+  if (gesture == nil) {
+    return;
+  }
+
+  UIWindow *window = gesture.view.window ?: gesture.view;
+  if (window == nil) {
+    return;
+  }
+
+  // Find the identifier for this window
+  NSNumber *foundIdentifier = nil;
+  for (NSNumber *identifier in self.activeWindows) {
+    MWIOSWindowEntry *entry = self.activeWindows[identifier];
+    if (entry != nil && entry.window == window) {
+      foundIdentifier = identifier;
+      break;
+    }
+  }
+
+  if (foundIdentifier != nil) {
+    [self emitWindowFocusEventForIdentifier:foundIdentifier];
+  }
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
+{
+  return YES;
 }
 
 - (void)handleJavaScriptDidLoad:(NSNotification *)notification

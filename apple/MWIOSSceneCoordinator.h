@@ -76,6 +76,8 @@ typedef NS_ENUM(NSInteger, MWIOSWindowErrorCode) {
 - (NSNumber *_Nullable)identifierForSession:(UISceneSession *)session;
 - (void)unregisterSession:(UISceneSession *)session;
 
+- (void)emitWindowFocusEventForIdentifier:(NSNumber *_Nullable)identifier;
+
 - (BOOL)canOpenAdditionalScenes;
 
 @end

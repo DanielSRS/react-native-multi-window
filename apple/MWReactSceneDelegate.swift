@@ -73,6 +73,13 @@ public final class MWReactSceneDelegate: UIResponder, UIWindowSceneDelegate {
     MWIOSSceneCoordinator.shared().unregisterSession(scene.session)
   }
 
+  public func sceneDidBecomeActive(_ scene: UIScene) {
+    let coordinator = MWIOSSceneCoordinator.shared()
+    if let identifier = coordinator.identifier(for: scene.session) {
+      coordinator.emitWindowFocusEvent(forIdentifier: identifier)
+    }
+  }
+
   public func stateRestorationActivity(for scene: UIScene) -> NSUserActivity? {
     scene.userActivity
   }
