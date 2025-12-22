@@ -34,6 +34,9 @@ public final class MWReactSceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     let window = UIWindow(windowScene: windowScene)
+    // Match the new window's interface style to the scene's current trait collection
+    // to avoid a brief flash to the wrong appearance when the window is first shown.
+    window.overrideUserInterfaceStyle = windowScene.traitCollection.userInterfaceStyle
     self.window = window
 
     let pendingInitialProps = pendingRequest?.initialProps as? [String: Any]
