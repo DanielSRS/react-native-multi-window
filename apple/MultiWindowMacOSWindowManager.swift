@@ -158,6 +158,33 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
     }
   }
 
+  func windowDidBecomeKey(_ notification: Notification) {
+    guard let window = notification.object as? NSWindow else {
+      return
+    }
+
+    guard let entry = openWindows.first(where: { $0.value.window === window }) else {
+      return
+    }
+
+    let windowId = entry.key
+
+    DispatchQueue.main.async { [weak self] in
+      guard let self else {
+        return
+      }
+
+      self.emitWindowFocusEvent(id: windowId)
+      self.emitLog([
+        "function": "WindowDidBecomeKey",
+        "window id": Double(windowId),
+        "isKeyWindow": window.isKeyWindow,
+        "isVisible": window.isVisible,
+        "screenName": window.screen?.localizedName ?? "unknown",
+      ])
+    }
+  }
+
   private func buildWindow(title: String) -> NSWindow {
     var cascadePoint = NSPoint(x: 30, y: 50)
     let windowRect = focusedWindowFrame() ?? NSRect(x: 100, y: 100, width: 600, height: 400)
@@ -277,6 +304,25 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
           "type": 9873,
           "id": Double(id),
           "title": title,
+        ],
+      ],
+      completion: nil
+    )
+  }
+
+  private func emitWindowFocusEvent(id: UInt64) {
+    guard let bridge else {
+      return
+    }
+
+    bridge.enqueueJSCall(
+      "RCTDeviceEventEmitter",
+      method: "emit",
+      args: [
+        "MultiWindow/event",
+        [
+          "type": 4521,
+          "id": Double(id),
         ],
       ],
       completion: nil
