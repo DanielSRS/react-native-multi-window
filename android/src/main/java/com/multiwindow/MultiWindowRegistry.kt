@@ -1,5 +1,6 @@
 package com.multiwindow
 
+import android.app.Activity
 import android.os.Handler
 import android.os.Looper
 import java.lang.ref.WeakReference
@@ -13,13 +14,13 @@ internal object MultiWindowRegistry {
   }
 
   private val handler = Handler(Looper.getMainLooper())
-  private val activities = ConcurrentHashMap<Long, WeakReference<MultiWindowActivity>>()
+  private val activities = ConcurrentHashMap<Long, WeakReference<Activity>>()
 
-  fun register(id: Long, activity: MultiWindowActivity) {
+  fun register(id: Long, activity: Activity) {
     activities[id] = WeakReference(activity)
   }
 
-  fun unregister(id: Long, activity: MultiWindowActivity?) {
+  fun unregister(id: Long, activity: Activity?) {
     val tracked = activities[id]?.get()
     if (tracked == null || tracked === activity) {
       activities.remove(id)

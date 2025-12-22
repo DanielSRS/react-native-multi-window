@@ -1,7 +1,9 @@
 package com.multiwindow
 
+import android.app.Activity
 import android.content.Intent
 import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableMap
@@ -17,22 +19,40 @@ class MultiWindowModule(
   private val reactContext: ReactApplicationContext,
 ) :
   NativeMultiWindowSpec(reactContext) {
+  private val windowIdGenerator = AtomicLong(0)
+  private var mainWindowId: Long? = null
+  private var mainWindowActivityRef: WeakReference<Activity>? = null
+  private var mainWindowEventEmitted = false
+
+  private val lifecycleEventListener = object : LifecycleEventListener {
+    override fun onHostResume() {
+      registerMainWindowIfNeeded(currentActivity)
+    }
+
+    override fun onHostPause() = Unit
+
+    override fun onHostDestroy() {
+      handleMainWindowDestroyed(currentActivity ?: mainWindowActivityRef?.get())
+    }
+  }
 
   init {
     registerModuleContext(reactContext)
+    reactContext.addLifecycleEventListener(lifecycleEventListener)
+    registerMainWindowIfNeeded(reactContext.currentActivity)
   }
 
   override fun initialize() {
     super.initialize()
     registerModuleContext(reactContext)
+    registerMainWindowIfNeeded(reactContext.currentActivity)
   }
 
   override fun invalidate() {
     unregisterModuleContext(reactContext)
+    reactContext.removeLifecycleEventListener(lifecycleEventListener)
     super.invalidate()
   }
-
-  private val windowIdGenerator = AtomicLong(0)
 
   override fun getName(): String {
     return NAME
@@ -221,6 +241,53 @@ class MultiWindowModule(
       if (stored == null || stored == context) {
         reactContextRef = null
       }
+    }
+  }
+
+  private fun registerMainWindowIfNeeded(activity: Activity?) {
+    if (activity == null || activity is MultiWindowActivity) {
+      return
+    }
+
+    val tracked = mainWindowActivityRef?.get()
+    if (tracked === activity) {
+      return
+    }
+
+    val id = mainWindowId ?: windowIdGenerator.incrementAndGet().also { mainWindowId = it }
+
+    tracked?.let { previous ->
+      MultiWindowRegistry.unregister(id, previous)
+    }
+
+    mainWindowActivityRef = WeakReference(activity)
+    MultiWindowRegistry.register(id, activity)
+
+    if (!mainWindowEventEmitted) {
+      emitWindowOpenedEvent(id, activity.title?.toString())
+      mainWindowEventEmitted = true
+    }
+  }
+
+  private fun handleMainWindowDestroyed(activity: Activity?) {
+    if (activity == null || activity is MultiWindowActivity) {
+      return
+    }
+
+    val tracked = mainWindowActivityRef?.get()
+    if (tracked == null || tracked !== activity) {
+      return
+    }
+
+    val id = mainWindowId ?: return
+
+    MultiWindowRegistry.unregister(id, activity)
+    mainWindowActivityRef = null
+
+    if (!activity.isChangingConfigurations) {
+      emitWindowClosedEvent(id)
+      mainWindowId = null
+      mainWindowEventEmitted = false
     }
   }
 }
