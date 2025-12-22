@@ -31,8 +31,18 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
   private var nextWindowIdentifier: UInt64 = 1
   private var openWindows: [UInt64: ManagedWindow] = [:]
 
+  deinit {
+    NotificationCenter.default.removeObserver(self)
+  }
+
   func updateBridge(_ bridge: RCTBridge?) {
     self.bridge = bridge
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleWindowDidBecomeKeyNotification(_:)),
+      name: NSWindow.didBecomeKeyNotification,
+      object: nil
+    )
   }
 
   func openNewWindow(withOptions options: NSDictionary?, completion: @escaping (NSNumber) -> Void) {
@@ -162,12 +172,21 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
     guard let window = notification.object as? NSWindow else {
       return
     }
-
-    guard let entry = openWindows.first(where: { $0.value.window === window }) else {
-      return
+    // If the window isn't tracked (e.g. the app's main window), register it
+    // using its pointer as an identifier so we can emit focus and close events.
+    var windowId: UInt64
+    if let entry = openWindows.first(where: { $0.value.window === window }) {
+      windowId = entry.key
+    } else {
+      let ptr = Unmanaged.passUnretained(window).toOpaque()
+      windowId = UInt64(UInt(bitPattern: ptr))
+      // Only set delegate if none exists so we don't override app behavior.
+      if window.delegate == nil {
+        window.delegate = self
+      }
+      window.identifier = NSUserInterfaceItemIdentifier("multiwindow-\(windowId)")
+      openWindows[windowId] = ManagedWindow(id: windowId, window: window)
     }
-
-    let windowId = entry.key
 
     DispatchQueue.main.async { [weak self] in
       guard let self else {
@@ -183,6 +202,10 @@ final class MWMacWindowManager: NSObject, NSWindowDelegate {
         "screenName": window.screen?.localizedName ?? "unknown",
       ])
     }
+  }
+
+  @objc private func handleWindowDidBecomeKeyNotification(_ notification: Notification) {
+    windowDidBecomeKey(notification)
   }
 
   private func buildWindow(title: String) -> NSWindow {
