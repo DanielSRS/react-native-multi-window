@@ -13,6 +13,7 @@
     "test:windows": "jest --config jest.config.windows.js"
   },
   "dependencies": {
+    "@danielsrs/react-native-sdk": "^0.6.0",
     "react": "19.0.0",
     "react-native": "0.79.0",
     "react-native-macos": "^0.79.0-0",

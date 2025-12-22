@@ -1733,6 +1733,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@danielsrs/react-native-sdk@npm:^0.6.0":
+  version: 0.6.0
+  resolution: "@danielsrs/react-native-sdk@npm:0.6.0"
+  dependencies:
+    "@legendapp/state": beta
+    scheduler: ^0.23.2
+    ts-pattern: ^5.2.0
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-document-picker: "*"
+  peerDependenciesMeta:
+    react-native-document-picker:
+      optional: true
+  checksum: 5f01f7793ea251d04ede5d56e237bda34cf0ce683bdbc3823bab9a9de02a4a3328fa2a5b6427a8be863da29bd7d2b578d5d946d6f59d798c11e2a1f7bcc92b27
+  languageName: node
+  linkType: hard
+
 "@eslint-community/eslint-utils@npm:^4.2.0, @eslint-community/eslint-utils@npm:^4.4.0, @eslint-community/eslint-utils@npm:^4.8.0":
   version: 4.9.0
   resolution: "@eslint-community/eslint-utils@npm:4.9.0"
@@ -2508,6 +2526,20 @@ __metadata:
     "@jridgewell/resolve-uri": ^3.1.0
     "@jridgewell/sourcemap-codec": ^1.4.14
   checksum: af8fda2431348ad507fbddf8e25f5d08c79ecc94594061ce402cf41bc5aba1a7b3e59bf0fd70a619b35f33983a3f488ceeba8faf56bff784f98bb5394a8b7d47
+  languageName: node
+  linkType: hard
+
+"@legendapp/state@npm:beta":
+  version: 3.0.0-beta.42
+  resolution: "@legendapp/state@npm:3.0.0-beta.42"
+  dependencies:
+    use-sync-external-store: ^1.2.2
+  peerDependencies:
+    expo-sqlite: ^15.0.0
+  peerDependenciesMeta:
+    expo-sqlite:
+      optional: true
+  checksum: c51437fdb058c8696c6368ab1d4d1c71eb66dadd1cf6f2de20154594e366fc97f738372f31e3c80a1d606e789fa94a0b4e17d190a783618bd80c3df3f2aee9a0
   languageName: node
   linkType: hard
 
@@ -9372,7 +9404,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"loose-envify@npm:^1.0.0, loose-envify@npm:^1.4.0":
+"loose-envify@npm:^1.0.0, loose-envify@npm:^1.1.0, loose-envify@npm:^1.4.0":
   version: 1.4.0
   resolution: "loose-envify@npm:1.4.0"
   dependencies:
@@ -11201,6 +11233,7 @@ __metadata:
     "@babel/core": ^7.25.2
     "@babel/preset-env": ^7.25.3
     "@babel/runtime": ^7.25.0
+    "@danielsrs/react-native-sdk": ^0.6.0
     "@react-native-community/cli": 18.0.0
     "@react-native-community/cli-platform-android": 18.0.0
     "@react-native-community/cli-platform-ios": 18.0.0
@@ -11779,6 +11812,15 @@ __metadata:
   version: 0.25.0
   resolution: "scheduler@npm:0.25.0"
   checksum: b7bb9fddbf743e521e9aaa5198a03ae823f5e104ebee0cb9ec625392bb7da0baa1c28ab29cee4b1e407a94e76acc6eee91eeb749614f91f853efda2613531566
+  languageName: node
+  linkType: hard
+
+"scheduler@npm:^0.23.2":
+  version: 0.23.2
+  resolution: "scheduler@npm:0.23.2"
+  dependencies:
+    loose-envify: ^1.1.0
+  checksum: 3e82d1f419e240ef6219d794ff29c7ee415fbdc19e038f680a10c067108e06284f1847450a210b29bbaf97b9d8a97ced5f624c31c681248ac84c80d56ad5a2c4
   languageName: node
   linkType: hard
 
@@ -12605,6 +12647,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ts-pattern@npm:^5.2.0":
+  version: 5.9.0
+  resolution: "ts-pattern@npm:5.9.0"
+  checksum: cc2bce3fb99cf20a1b6640b44a086b936c1b366ea59ed700069e9540d2b1b98a103deeb8777a7996f40e461b0bb5abfab613d8423635debf25a294d4cc7d153b
+  languageName: node
+  linkType: hard
+
 "tslib@npm:^1.8.1":
   version: 1.14.1
   resolution: "tslib@npm:1.14.1"
@@ -12995,6 +13044,15 @@ __metadata:
   version: 5.0.0
   resolution: "url-join@npm:5.0.0"
   checksum: 5921384a8ad4395b49ce4b50aa26efbc429cebe0bc8b3660ad693dd12fd859747b5369be0443e60e53a7850b2bc9d7d0687bcb94386662b40e743596bbf38101
+  languageName: node
+  linkType: hard
+
+"use-sync-external-store@npm:^1.2.2":
+  version: 1.6.0
+  resolution: "use-sync-external-store@npm:1.6.0"
+  peerDependencies:
+    react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 61a62e910713adfaf91bdb72ff2cd30e5ba83687accaf3b6e75a903b45bf635f5722e3694af30d83a03e92cb533c0a5c699298d2fef639a03ffc86b469f4eee2
   languageName: node
   linkType: hard
 
