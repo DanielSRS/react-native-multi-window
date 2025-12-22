@@ -51,7 +51,7 @@ export function useWindowList() {
   const [openWindows, setOpenWindows] = useState(getWindowList());
 
   useEffect(() => {
-    if (Platform.OS === 'ios') {
+    if (Platform.OS === 'ios' || Platform.OS === 'macos') {
       // On ipadOS, a new window can be created by the os UI, so a queue
       // of event is created at launch, but since turboModules are lazy loaded,
       // those events are not sent until the module is loaded, so we call
