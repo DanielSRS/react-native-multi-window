@@ -40,6 +40,10 @@ struct MultiWindow
     void EmitWindowEvent(JSValueObject payload) noexcept;
   void RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const& window) noexcept;
   void EmitInitialWindowOpenedEvent() noexcept;
+  void AttachWindowFocusTracking(HWND hwnd) noexcept;
+  void DetachWindowFocusTracking(HWND hwnd) noexcept;
+  void HandleWindowFocused(HWND hwnd) noexcept;
+  static LRESULT CALLBACK WindowFocusSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR subclassId, DWORD_PTR refData) noexcept;
 
   React::ReactContext m_context;
   std::map<uintptr_t, ReactWindow> m_openWindows;

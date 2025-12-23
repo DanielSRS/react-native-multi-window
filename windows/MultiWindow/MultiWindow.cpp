@@ -1,8 +1,11 @@
 #include "pch.h"
 
 #include <cmath>
+#include <commctrl.h>
 #include <future>
 #include <string>
+
+#pragma comment(lib, "Comctl32.lib")
 #include "MultiWindow.h"
 #include "Utilities.h"
 
@@ -14,6 +17,7 @@ namespace
 constexpr double kInvalidCloseIdentifier = -71021.0;
 constexpr double kWindowNotFound = -71022.0;
 constexpr double kCloseRequestFailed = -71023.0;
+constexpr UINT_PTR kWindowFocusSubclassId = 0x4D574657; // 'MWEG'
 
 bool NormalizeIdentifier(double id, uintptr_t& normalized) noexcept {
   if (!std::isfinite(id) || id <= 0) {
@@ -89,23 +93,27 @@ void MultiWindow::EmitInitialWindowOpenedEvent() noexcept {
 
   const auto hwndKey = reinterpret_cast<uintptr_t>(hwnd);
   auto existing = m_openWindows.find(hwndKey);
-  if (rootWindow && existing == m_openWindows.end()) {
-    ReactWindow mainWindow{};
-    mainWindow.type = WindowType::DEFAULT;
-    mainWindow.window = rootWindow;
-    try {
-      mainWindow.destroyingToken = rootWindow.Destroying([this] (
-        winrt::Microsoft::UI::Windowing::AppWindow const& sender,
-        winrt::Windows::Foundation::IInspectable const&) {
-          RemoveWindow(sender);
-        });
-    }
-    catch (...) {
-      // If we cannot attach a destroying handler, we still keep tracking the window
-      // so closeWindowBy can operate using the stored AppWindow.
+  if (rootWindow) {
+    if (existing == m_openWindows.end()) {
+      ReactWindow mainWindow{};
+      mainWindow.type = WindowType::DEFAULT;
+      mainWindow.window = rootWindow;
+      try {
+        mainWindow.destroyingToken = rootWindow.Destroying([this] (
+          winrt::Microsoft::UI::Windowing::AppWindow const& sender,
+          winrt::Windows::Foundation::IInspectable const&) {
+            RemoveWindow(sender);
+          });
+      }
+      catch (...) {
+        // If we cannot attach a destroying handler, we still keep tracking the window
+        // so closeWindowBy can operate using the stored AppWindow.
+      }
+
+      m_openWindows.emplace(hwndKey, std::move(mainWindow));
     }
 
-    m_openWindows.emplace(hwndKey, std::move(mainWindow));
+    AttachWindowFocusTracking(hwnd);
   }
 
   std::string windowTitle;
@@ -150,6 +158,7 @@ void MultiWindow::RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const&
   const auto id = reinterpret_cast<uintptr_t>(hwnd);
   auto it = m_openWindows.find(id);
   if (it != m_openWindows.end()) {
+    DetachWindowFocusTracking(hwnd);
     winrt::Windows::Foundation::IAsyncAction unloadAction{ nullptr };
     if (it->second.viewHost) {
       unloadAction = it->second.viewHost.UnloadViewInstance();
@@ -221,12 +230,13 @@ void MultiWindow::openNewWindow(WindowOptions&& options, ReactPromiseDouble&& re
       );
       if (std::holds_alternative<ReactWindow>(result)) {
         auto r = std::get<ReactWindow>(result);
-        const auto hwnd = winrt::Microsoft::UI::GetWindowFromWindowId(r.window.Id());
-        const auto windowId = reinterpret_cast<uintptr_t>(hwnd);
-        openWindows[windowId] = std::move(r);
+  const auto hwnd = winrt::Microsoft::UI::GetWindowFromWindowId(r.window.Id());
+  const auto windowId = reinterpret_cast<uintptr_t>(hwnd);
+  openWindows[windowId] = std::move(r);
         const auto windowIdDouble = static_cast<double>(windowId);
         innerPromise.Resolve(windowIdDouble);
-        openWindows.at(windowId).window.Show();
+  openWindows.at(windowId).window.Show();
+  AttachWindowFocusTracking(hwnd);
         EmitWindowEvent(JSValueObject{
           {"type", 9873},
           {"id", windowIdDouble},
@@ -366,6 +376,74 @@ void MultiWindow::EmitWindowEvent(JSValueObject payload) noexcept {
         React::WriteArgs(writer, "MultiWindow/event", payload);
       }
   );
+}
+
+void MultiWindow::AttachWindowFocusTracking(HWND hwnd) noexcept {
+  if (!hwnd) {
+    return;
+  }
+
+  RemoveWindowSubclass(hwnd, WindowFocusSubclassProc, kWindowFocusSubclassId);
+  SetWindowSubclass(hwnd, WindowFocusSubclassProc, kWindowFocusSubclassId, reinterpret_cast<DWORD_PTR>(this));
+}
+
+void MultiWindow::DetachWindowFocusTracking(HWND hwnd) noexcept {
+  if (!hwnd) {
+    return;
+  }
+
+  RemoveWindowSubclass(hwnd, WindowFocusSubclassProc, kWindowFocusSubclassId);
+}
+
+void MultiWindow::HandleWindowFocused(HWND hwnd) noexcept {
+  if (!hwnd || !m_context) {
+    return;
+  }
+
+  const auto id = reinterpret_cast<uintptr_t>(hwnd);
+  if (m_openWindows.find(id) == m_openWindows.end()) {
+    return;
+  }
+
+  const auto idDouble = static_cast<double>(id);
+  EmitWindowEvent(JSValueObject{
+      {"type", 4521},
+      {"id", idDouble},
+  });
+
+  EmitLogEvent(JSValueObject{
+      {"function", "WindowFocused"},
+      {"window id", idDouble},
+  });
+}
+
+LRESULT CALLBACK MultiWindow::WindowFocusSubclassProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wParam,
+    LPARAM lParam,
+    UINT_PTR /*subclassId*/,
+    DWORD_PTR refData) noexcept {
+  auto* self = reinterpret_cast<MultiWindow*>(refData);
+  if (self) {
+    switch (msg) {
+    case WM_SETFOCUS:
+      self->HandleWindowFocused(hwnd);
+      break;
+    case WM_ACTIVATE:
+      if (LOWORD(wParam) != WA_INACTIVE) {
+        self->HandleWindowFocused(hwnd);
+      }
+      break;
+    case WM_NCDESTROY:
+      self->DetachWindowFocusTracking(hwnd);
+      break;
+    default:
+      break;
+    }
+  }
+
+  return DefSubclassProc(hwnd, msg, wParam, lParam);
 }
 
 } // namespace winrt::MultiWindow
