@@ -87,6 +87,27 @@ void MultiWindow::EmitInitialWindowOpenedEvent() noexcept {
     rootWindow = nullptr;
   }
 
+  const auto hwndKey = reinterpret_cast<uintptr_t>(hwnd);
+  auto existing = m_openWindows.find(hwndKey);
+  if (rootWindow && existing == m_openWindows.end()) {
+    ReactWindow mainWindow{};
+    mainWindow.type = WindowType::DEFAULT;
+    mainWindow.window = rootWindow;
+    try {
+      mainWindow.destroyingToken = rootWindow.Destroying([this] (
+        winrt::Microsoft::UI::Windowing::AppWindow const& sender,
+        winrt::Windows::Foundation::IInspectable const&) {
+          RemoveWindow(sender);
+        });
+    }
+    catch (...) {
+      // If we cannot attach a destroying handler, we still keep tracking the window
+      // so closeWindowBy can operate using the stored AppWindow.
+    }
+
+    m_openWindows.emplace(hwndKey, std::move(mainWindow));
+  }
+
   std::string windowTitle;
   if (rootWindow) {
     try {
@@ -110,7 +131,7 @@ void MultiWindow::EmitInitialWindowOpenedEvent() noexcept {
     windowTitle = "Main Window";
   }
 
-  const auto hwndId = static_cast<double>(reinterpret_cast<uintptr_t>(hwnd));
+  const auto hwndId = static_cast<double>(hwndKey);
   EmitWindowEvent(JSValueObject{
     {"type", 9873},
     {"id", hwndId},
@@ -129,7 +150,10 @@ void MultiWindow::RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const&
   const auto id = reinterpret_cast<uintptr_t>(hwnd);
   auto it = m_openWindows.find(id);
   if (it != m_openWindows.end()) {
-    auto unloadAction = it->second.viewHost.UnloadViewInstance();
+    winrt::Windows::Foundation::IAsyncAction unloadAction{ nullptr };
+    if (it->second.viewHost) {
+      unloadAction = it->second.viewHost.UnloadViewInstance();
+    }
     if (it->second.type == WindowType::MICA && it->second.micaWindowData.has_value()) {
       auto& micaData = it->second.micaWindowData.value();
       micaData.compositionTarget.Close();
@@ -170,8 +194,10 @@ void MultiWindow::RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const&
       {"type", 764},
       {"id", static_cast<double>(id)}
     });
-    unloadAction.Completed([id](auto&&, auto&&) {
-     });
+    if (unloadAction) {
+      unloadAction.Completed([id](auto&&, auto&&) {
+      });
+    }
   }
 }
 
