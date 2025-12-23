@@ -39,6 +39,7 @@ struct MultiWindow
   void EmitLogEvent(JSValueObject payload) noexcept;
     void EmitWindowEvent(JSValueObject payload) noexcept;
   void RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const& window) noexcept;
+  void EmitInitialWindowOpenedEvent() noexcept;
 
   React::ReactContext m_context;
   std::map<uintptr_t, ReactWindow> m_openWindows;

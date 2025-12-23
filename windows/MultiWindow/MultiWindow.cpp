@@ -34,6 +34,94 @@ bool NormalizeIdentifier(double id, uintptr_t& normalized) noexcept {
 
 void MultiWindow::Initialize(React::ReactContext const &reactContext) noexcept {
   m_context = reactContext;
+
+  auto dispatcher = m_context.UIDispatcher();
+  if (dispatcher && !dispatcher.HasThreadAccess()) {
+    dispatcher.Post([this]() noexcept {
+      EmitInitialWindowOpenedEvent();
+    });
+  }
+  else {
+    EmitInitialWindowOpenedEvent();
+  }
+}
+
+void MultiWindow::EmitInitialWindowOpenedEvent() noexcept {
+  if (!m_context) {
+    return;
+  }
+
+  auto reactHost = winrt::Microsoft::ReactNative::ReactNativeHost::FromContext(m_context.Handle());
+  if (!reactHost) {
+    return;
+  }
+
+  auto instanceSettings = reactHost.InstanceSettings();
+  if (!instanceSettings) {
+    return;
+  }
+
+  auto properties = instanceSettings.Properties();
+  if (!properties) {
+    return;
+  }
+
+  const auto topLevelWindowId = winrt::Microsoft::ReactNative::ReactCoreInjection::GetTopLevelWindowId(properties);
+  if (topLevelWindowId == 0) {
+    return;
+  }
+
+  auto hwnd = reinterpret_cast<HWND>(topLevelWindowId);
+  if (!hwnd) {
+    return;
+  }
+
+  winrt::Microsoft::UI::Windowing::AppWindow rootWindow{ nullptr };
+  try {
+    const auto windowId = winrt::Microsoft::UI::GetWindowIdFromWindow(hwnd);
+    if (windowId.Value != 0) {
+      rootWindow = winrt::Microsoft::UI::Windowing::AppWindow::GetFromWindowId(windowId);
+    }
+  }
+  catch (...) {
+    rootWindow = nullptr;
+  }
+
+  std::string windowTitle;
+  if (rootWindow) {
+    try {
+      windowTitle = winrt::to_string(rootWindow.Title());
+    }
+    catch (...) {
+      windowTitle.clear();
+    }
+  }
+
+  if (windowTitle.empty()) {
+    constexpr int kTitleBufferSize = 512;
+    wchar_t buffer[kTitleBufferSize]{};
+    const auto length = GetWindowTextW(hwnd, buffer, kTitleBufferSize);
+    if (length > 0) {
+      windowTitle = winrt::to_string(winrt::hstring(buffer));
+    }
+  }
+
+  if (windowTitle.empty()) {
+    windowTitle = "Main Window";
+  }
+
+  const auto hwndId = static_cast<double>(reinterpret_cast<uintptr_t>(hwnd));
+  EmitWindowEvent(JSValueObject{
+    {"type", 9873},
+    {"id", hwndId},
+    {"title", windowTitle}
+  });
+
+  EmitLogEvent(JSValueObject{
+    {"function", "EmitInitialWindowOpenedEvent"},
+    {"window id", hwndId},
+    {"title", windowTitle}
+  });
 }
 
 void MultiWindow::RemoveWindow(winrt::Microsoft::UI::Windowing::AppWindow const& window) noexcept {
