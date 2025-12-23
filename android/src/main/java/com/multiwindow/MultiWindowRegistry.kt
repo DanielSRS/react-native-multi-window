@@ -27,6 +27,22 @@ internal object MultiWindowRegistry {
     }
   }
 
+  fun findIdByActivity(activity: Activity): Long? {
+    val iterator = activities.entries.iterator()
+    while (iterator.hasNext()) {
+      val entry = iterator.next()
+      val stored = entry.value.get()
+      if (stored == null) {
+        iterator.remove()
+        continue
+      }
+      if (stored === activity) {
+        return entry.key
+      }
+    }
+    return null
+  }
+
   fun requestClose(id: Long): CloseResult {
     val trackedActivity = activities[id]?.get()
     if (trackedActivity == null) {

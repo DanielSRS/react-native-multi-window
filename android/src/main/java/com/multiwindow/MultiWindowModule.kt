@@ -19,6 +19,7 @@ class MultiWindowModule(
   private val reactContext: ReactApplicationContext,
 ) :
   NativeMultiWindowSpec(reactContext) {
+
   private val windowIdGenerator = AtomicLong(0)
   private var mainWindowId: Long? = null
   private var mainWindowActivityRef: WeakReference<Activity>? = null
@@ -27,6 +28,7 @@ class MultiWindowModule(
   private val lifecycleEventListener = object : LifecycleEventListener {
     override fun onHostResume() {
       registerMainWindowIfNeeded(currentActivity)
+      mainWindowId?.let { emitWindowFocusEvent(it) }
     }
 
     override fun onHostPause() = Unit
@@ -228,6 +230,18 @@ class MultiWindowModule(
           putInt("type", 9873)
           putDouble("id", id.toDouble())
           putString("title", title ?: "")
+        },
+      )
+    }
+
+    internal fun emitWindowFocusEvent(id: Long) {
+      val context = reactContextRef?.get() ?: return
+
+      emitWindowEvent(
+        context,
+        Arguments.createMap().apply {
+          putInt("type", 4521)
+          putDouble("id", id.toDouble())
         },
       )
     }

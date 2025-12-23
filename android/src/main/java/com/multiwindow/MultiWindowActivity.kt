@@ -17,6 +17,13 @@ class MultiWindowActivity : ReactActivity() {
     }
   }
 
+  override fun onResume() {
+    super.onResume()
+    if (windowIdentifier > 0) {
+      MultiWindowModule.emitWindowFocusEvent(windowIdentifier)
+    }
+  }
+
   override fun onDestroy() {
     if (windowIdentifier > 0) {
       MultiWindowRegistry.unregister(windowIdentifier, this)
