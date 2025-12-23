@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Body, Caption, Title, useColors } from '@danielsrs/react-native-sdk';
 import { closeWindowBy, useWindowList, type WindowType } from '../../../../src';
@@ -6,17 +6,20 @@ import { closeWindowBy, useWindowList, type WindowType } from '../../../../src';
 import { formatDuration } from '../../shared/formatDuration';
 import { styles } from '../../shared/styles';
 import {
+  addWindowMeta,
   formatEvent,
+  removeWindowMeta,
   useWindowDiagnostics,
+  WINDOW_META,
 } from '../events/useWindowDiagnostics';
 import { WINDOW_TYPE_DETAILS } from './constants';
-import type { WindowMeta } from './types';
 import { SharedCounterSection } from './components/shared-counter-section';
 import { StatsSection, type StatEntry } from './components/stats-section';
 import { WindowLauncherSection } from './components/window-launcher-section';
 import { WindowListSection } from './components/window-list-section';
 import { DiagnosticsSection } from './components/diagnostics-section';
 import { useWindowBreakpoints } from '../../shared/use-bp';
+import { useSelector } from '@legendapp/state/react';
 
 export type RegisteredWindow = ReturnType<typeof useWindowList>[number];
 
@@ -26,36 +29,22 @@ export function MainPage({ rootProps }: { rootProps: unknown }) {
   const breakpoint = useWindowBreakpoints();
   const isWide = breakpoint >= breakpoint.LARGE_BREAKPOINT;
 
-  const [windowMeta, setWindowMeta] = useState<Record<number, WindowMeta>>({});
+  const windowMeta = useSelector(WINDOW_META);
 
   useEffect(() => {
     console.log('Showcase multi-window props', rootProps);
   }, [rootProps]);
 
-  const removeWindowMeta = useCallback((id: number) => {
-    setWindowMeta((previous) => {
-      if (!previous[id]) {
-        return previous;
-      }
-      const clone = { ...previous };
-      delete clone[id];
-      return clone;
-    });
-  }, []);
-
-  const { eventLog, nativeLogs } = useWindowDiagnostics(removeWindowMeta);
+  const { eventLog, nativeLogs } = useWindowDiagnostics();
 
   const stats = useMemo(() => deriveWindowStats(windows), [windows]);
 
-  const handleCloseWindow = useCallback(
-    (id: number) => {
-      const result = closeWindowBy(id);
-      if (result > 0) {
-        removeWindowMeta(result);
-      }
-    },
-    [removeWindowMeta]
-  );
+  const handleCloseWindow = useCallback((id: number) => {
+    const result = closeWindowBy(id);
+    if (result > 0) {
+      removeWindowMeta(result);
+    }
+  }, []);
 
   const layoutStyle = isWide ? styles.row : styles.column;
 
@@ -108,7 +97,7 @@ export function MainPage({ rootProps }: { rootProps: unknown }) {
         </View>
       </View>
 
-      <WindowLauncherSection colors={colors} setWindowMeta={setWindowMeta} />
+      <WindowLauncherSection colors={colors} setWindowMeta={addWindowMeta} />
 
       <WindowListSection
         windows={windows}

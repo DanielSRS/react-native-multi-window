@@ -36,13 +36,11 @@ import {
   ShowcaseInput,
   SwatchButton,
 } from './feature-primitives';
-import React, { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 export type WindowLauncherSectionProps = {
   colors: ReturnType<typeof useColors>;
-  setWindowMeta: (
-    data: React.SetStateAction<Record<number, WindowMeta>>
-  ) => void;
+  setWindowMeta: (id: number, meta: WindowMeta) => void;
 };
 
 export function WindowLauncherSection({
@@ -96,17 +94,14 @@ export function WindowLauncherSection({
         });
 
         if (responseCode > 0) {
-          setWindowMeta((previous) => ({
-            ...previous,
-            [responseCode]: {
-              componentKey: request.componentKey,
-              componentName: request.componentName,
-              payload: request.payload,
-              type: request.type,
-              title: request.title,
-              openedAt: Date.now(),
-            },
-          }));
+          setWindowMeta(responseCode, {
+            componentKey: request.componentKey,
+            componentName: request.componentName,
+            payload: request.payload,
+            type: request.type,
+            title: request.title,
+            openedAt: Date.now(),
+          });
         } else {
           console.warn('openNewWindow returned a non-window id:', responseCode);
         }
