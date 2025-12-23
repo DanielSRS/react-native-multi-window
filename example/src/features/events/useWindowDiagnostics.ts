@@ -30,10 +30,10 @@ export function useWindowDiagnostics(
         const serialized =
           typeof payload === 'string' ? payload : JSON.stringify(payload);
         setNativeLogs((previous) =>
-          [
-            `${new Date().toLocaleTimeString()} ${serialized}`,
-            ...previous,
-          ].slice(0, limit)
+          [`${new Date().toTimeString()} ${serialized}`, ...previous].slice(
+            0,
+            limit
+          )
         );
       }
     );
@@ -48,7 +48,7 @@ export function useWindowDiagnostics(
 }
 
 export function formatEvent(event: WindowEventLog) {
-  const timestamp = new Date(event.recordedAt).toLocaleTimeString();
+  const timestamp = new Date(event.recordedAt).toTimeString();
   const t = event.type;
   switch (t) {
     case 4521:
