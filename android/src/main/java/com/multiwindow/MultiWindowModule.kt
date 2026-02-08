@@ -24,6 +24,7 @@ class MultiWindowModule(
   private var mainWindowId: Long? = null
   private var mainWindowActivityRef: WeakReference<Activity>? = null
   private var mainWindowEventEmitted = false
+  //private var mainWindowClosedNotified = false
 
   private val lifecycleEventListener = object : LifecycleEventListener {
     override fun onHostResume() {
@@ -137,6 +138,10 @@ class MultiWindowModule(
         MultiWindowRegistry.CloseResult.SUCCESS -> {
           result = normalizedIdentifier.toDouble()
           status = "success"
+          //if (normalizedIdentifier == mainWindowId && !mainWindowClosedNotified) {
+          //  mainWindowClosedNotified = true
+          //  emitWindowClosedEvent(normalizedIdentifier)
+          //}
         }
         MultiWindowRegistry.CloseResult.NOT_FOUND -> {
           result = ErrorCodes.WINDOW_NOT_FOUND.value
@@ -280,6 +285,7 @@ class MultiWindowModule(
     if (!mainWindowEventEmitted) {
       emitWindowOpenedEvent(id, activity.title?.toString())
       mainWindowEventEmitted = true
+      //mainWindowClosedNotified = false
     }
   }
 
@@ -299,7 +305,10 @@ class MultiWindowModule(
     mainWindowActivityRef = null
 
     if (!activity.isChangingConfigurations) {
-      emitWindowClosedEvent(id)
+      //if (!mainWindowClosedNotified) {
+        emitWindowClosedEvent(id)
+      //  mainWindowClosedNotified = true
+      //}
       mainWindowId = null
       mainWindowEventEmitted = false
     }
